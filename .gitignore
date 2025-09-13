@@ -1,3 +1,22 @@
+dev/
+issues/
+data/
+scripts/
+# Keep AGENTS.md tracked in this repo (remove ignore)
+# AGENTS.md
+# CLAUDE.md
+dev/fixtures/cache/
+dev/fixtures/*.tar.zst
+PROJECT_NARRATIVE.md
+.claude/
+.agents/
+.vscode/
+.cursor/
+.cursorignore
+.cursorindexingignore
+.cursorignore
+*_export.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

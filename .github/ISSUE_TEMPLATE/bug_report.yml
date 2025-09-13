@@ -1,0 +1,32 @@
+name: Bug report
+description: Report a defect
+labels: ["type:bug","status:open"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options: [P0, P1, P2, P3]
+    validations: { required: true }
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: [ingest, crop, ffmpeg, tui, sdk]
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+

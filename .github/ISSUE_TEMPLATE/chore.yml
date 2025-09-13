@@ -1,0 +1,23 @@
+name: Chore
+description: Routine maintenance or setup
+labels: ["type:chore","status:open"]
+body:
+  - type: input
+    id: title
+    attributes:
+      label: Title
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options: [P0, P1, P2, P3]
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: [ingest, crop, ffmpeg, tui, sdk]
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+
