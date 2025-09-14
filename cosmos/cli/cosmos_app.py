@@ -7,6 +7,7 @@ import typer
 
 from cosmos.cli.crop_cli import app as crop_app
 from cosmos.cli.ingest_cli import app as ingest_app
+from cosmos.cli.provenance_cli import app as prov_app
 from cosmos.sdk.crop import CropJob
 from cosmos.sdk.crop import crop as sdk_crop
 from cosmos.sdk.ingest import IngestOptions
@@ -15,6 +16,7 @@ from cosmos.sdk.ingest import ingest as sdk_ingest
 app = typer.Typer(help="Cosmos: ingest + crop toolkit")
 app.add_typer(ingest_app, name="ingest", help="COSM camera MP4 generation")
 app.add_typer(crop_app, name="crop", help="Post-processing square crop")
+app.add_typer(prov_app, name="provenance", help="Inspect provenance artifacts")
 
 
 @app.command()
