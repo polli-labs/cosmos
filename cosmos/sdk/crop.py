@@ -72,9 +72,10 @@ def crop(
                         "end": spec.end if spec.end is not None else None,
                     },
                     encode_info={"impl": enc},
-                    job_ref=f"job0",
+                    job_ref="job0",
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).debug("crop provenance emission failed: %s", e)
         results.append(out)
     return results
