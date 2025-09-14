@@ -1,0 +1,33 @@
+site_name: Cosmos
+site_url: https://docs.polli.ai/cosmos
+repo_url: https://github.com/polli-labs/cosmos
+repo_name: polli-labs/cosmos
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+nav:
+  - Home: index.md
+  - Ingest:
+      - User Guide: ingest-user-guide.md
+      - CLI Reference: ingest-reference.md
+      - Input Structure: input-structure.md
+  - Squarecrop:
+      - User Guide: squarecrop-user-guide.md
+      - CLI Reference: squarecrop-reference.md
+  - CLI:
+      - cosmos CLI: cosmos-cli.md
+      - squarecrop CLI: squarecrop-cli.md
+  - SDK: sdk.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: false
+markdown_extensions:
+  - tables
+  - admonition

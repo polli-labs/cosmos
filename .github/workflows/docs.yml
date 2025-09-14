@@ -1,0 +1,49 @@
+name: Docs
+
+on:
+  # Manual trigger for now; we can add tag triggers later
+  workflow_dispatch:
+
+concurrency:
+  group: docs-deploy-cosmos
+  cancel-in-progress: true
+
+jobs:
+  deploy-docs:
+    name: Build & Deploy Docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install docs extras
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[docs]"
+      - name: Build docs
+        run: mkdocs build
+      - name: Add SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.POLLISERVE0_SSH_PRIVATE_KEY }}
+      - name: Check SSH connectivity
+        run: |
+          echo "Checking SSH connectivity to docs host..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
+            ${{ secrets.POLLISERVE0_SSH_USER }}@${{ secrets.POLLISERVE0_SSH_PUBLIC_HOST }} echo ok
+      - name: Deploy via rsync
+        run: |
+          rsync -avz --delete \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            site/ ${{ secrets.POLLISERVE0_SSH_USER }}@${{ secrets.POLLISERVE0_SSH_PUBLIC_HOST }}:/var/www/docs.polli.ai/html/cosmos/
+      - name: Upload built site as artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site/
+
+  # Enable this later to auto-build docs on releases (tags starting with v)
+  # release-docs:
+  #   if: startsWith(github.ref, 'refs/tags/v')
+  #   uses: ./.github/workflows/docs.yml
