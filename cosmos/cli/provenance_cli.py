@@ -1,19 +1,19 @@
+# ruff: noqa: I001
 from __future__ import annotations
 
+from collections.abc import Iterable
 import json
 from pathlib import Path
-from typing import Annotated, Iterable
+from typing import Annotated
 
 import typer
 
-from cosmos.sdk.provenance import (
-    find_clip_for_file,
-    find_view_for_file,
-    list_clip_artifacts,
-    list_view_artifacts,
-    map_artifacts_by_sha,
-    sha256_file,
-)
+from cosmos.sdk.provenance import find_clip_for_file
+from cosmos.sdk.provenance import find_view_for_file
+from cosmos.sdk.provenance import list_clip_artifacts
+from cosmos.sdk.provenance import list_view_artifacts
+from cosmos.sdk.provenance import map_artifacts_by_sha
+from cosmos.sdk.provenance import sha256_file
 
 
 app = typer.Typer(help="Inspect provenance artifacts emitted by Cosmos (ingest/crop)")
@@ -99,19 +99,17 @@ def cmd_views_for_clip(
 @app.command("map")
 def cmd_map(dir_path: Annotated[Path, typer.Argument(exists=True, file_okay=False)],):
     """Emit mapping from output sha256 → artifact JSON path (clip + view)."""
-    # For now, just print JSON mapping with minimal fields
-    m = map_artifacts_by_sha(dir_path)
-    # Add file path when possible
-    # We don't have the artifact path in the mapping; re-scan to attach
-    result: dict[str, dict] = {}
+    # Start from computed mapping and enrich with file paths when possible
+    result: dict[str, dict] = map_artifacts_by_sha(dir_path).copy()
     for p in dir_path.glob("*.cosmos_*.v1.json"):
         try:
             obj = json.loads(p.read_text())
             sha = ((obj.get("output") or {}).get("sha256"))
             if isinstance(sha, str):
                 obj["_path"] = str(p)
-                result[sha] = obj
-        except Exception:
-            continue
+                base = result.get(sha, {})
+                base.update(obj)
+                result[sha] = base
+        except Exception as e:
+            typer.secho(f"warn: failed to read {p.name}: {e}", err=True)
     typer.echo(json.dumps(result, indent=2))
-

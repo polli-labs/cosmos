@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 from __future__ import annotations
 
 import hashlib
@@ -8,7 +9,6 @@ import shutil
 import subprocess
 import sys
 import uuid
-from dataclasses import asdict
 from datetime import UTC, datetime
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -46,8 +46,19 @@ def ffmpeg_version() -> dict[str, str]:
 def ffprobe_video(path: Path) -> dict[str, Any]:
     ffprobe = shutil.which("ffprobe") or "ffprobe"
     try:
-        out = subprocess.run(
-            [ffprobe, "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,r_frame_rate,pix_fmt,color_space", "-of", "json", str(path)],  # noqa: E501,S603
+        out = subprocess.run(  # noqa: S603
+            [
+                ffprobe,
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=width,height,r_frame_rate,pix_fmt,color_space",
+                "-of",
+                "json",
+                str(path),
+            ],
             capture_output=True,
             text=True,
             check=True,
@@ -326,4 +337,3 @@ def find_view_for_file(file_path: Path) -> dict[str, Any] | None:
         if ((meta.get("output") or {}).get("sha256")) == sha:
             return meta
     return None
-
