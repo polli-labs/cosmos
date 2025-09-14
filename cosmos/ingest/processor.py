@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 
 # ruff: noqa: UP035,S603,S607
 import subprocess
@@ -244,8 +245,8 @@ class VideoProcessor:
                 error=last_error if "last_error" in locals() else "Unknown error",
             )
         finally:
-            if "concat_file" in locals() and Path(concat_file).exists():
+            if "concat_file" in locals() and os.path.exists(concat_file):
                 try:
-                    Path(concat_file).unlink()
+                    os.remove(concat_file)
                 except Exception as e:  # noqa: BLE001
                     logging.getLogger(__name__).debug("Failed to cleanup concat file: %s", e)
