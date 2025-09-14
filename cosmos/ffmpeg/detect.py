@@ -21,7 +21,9 @@ def choose_encoder() -> str:
     try:
         ff = shutil.which("ffmpeg") or "ffmpeg"
         out = subprocess.run([ff, "-hide_banner", "-encoders"], capture_output=True, text=True)  # noqa: S603
-        text = ((out.stdout or "") + (out.stderr or "")).lower()
+        stdout = out.stdout if isinstance(getattr(out, "stdout", None), str) else ""
+        stderr = out.stderr if isinstance(getattr(out, "stderr", None), str) else ""
+        text = (stdout + stderr).lower()
     except Exception:
         return "libx264"
 
