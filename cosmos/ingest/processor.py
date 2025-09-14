@@ -127,9 +127,9 @@ class VideoProcessor:
         scaling = f"[full]scale={width}:{height}:flags={sf}[out]"
         return f"{tile_processing};{scaling}"
 
-    def _create_concat_file(self, segments: list[SegmentInfo]) -> Path:
+    def _create_concat_file(self, segments: list[SegmentInfo]) -> str:
         with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
-            temp_file = Path(f.name)
+            temp_file = f.name
             for segment in segments:
                 for ts_file in segment.ts_files:
                     path_str = str(ts_file.absolute()).replace("\\", "/")
@@ -181,7 +181,7 @@ class VideoProcessor:
                         "-safe",
                         "0",
                         "-i",
-                        str(concat_file),
+                        concat_file,
                         "-filter_complex",
                         self._build_filter_complex(),
                         "-map",
