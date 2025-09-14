@@ -15,11 +15,11 @@ from cosmos.ingest.processor import (
     VideoProcessor,
 )
 from cosmos.ingest.validation import InputValidator
-from cosmos.utils.io import ensure_dir, find_videos
 from cosmos.sdk.provenance import (
     emit_clip_artifact,
     emit_ingest_run,
 )
+from cosmos.utils.io import ensure_dir, find_videos
 
 
 @dataclass
@@ -172,9 +172,11 @@ def ingest(  # noqa: C901
                     time_ms=(clip.start_pos.to_seconds() * 1000.0, (clip.start_pos.to_seconds() + clip.duration) * 1000.0),
                     frames=(clip.start_idx, clip.end_idx),
                 )
-            except Exception:
+            except Exception as e:
                 # Non-fatal if provenance emission fails
-                pass
+                import logging
+
+                logging.getLogger(__name__).debug("provenance emission failed: %s", e)
         results.append(res.output_path)
     if options.dry_run and plan is not None:
         out_json = output_dir / "cosmos_dry_run.json"
