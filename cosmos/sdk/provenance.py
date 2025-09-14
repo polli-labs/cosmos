@@ -273,3 +273,57 @@ def emit_crop_view(
     write_json(out, json.loads(view.model_dump_json()))
     return out
 
+
+# -----------------------------
+# Resolvers (for ibrida and tools)
+# -----------------------------
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return {}
+
+
+def list_clip_artifacts(dir_path: Path) -> list[dict[str, Any]]:
+    return [_load_json(p) for p in sorted(dir_path.glob("*.mp4.cosmos_clip.v1.json"))]
+
+
+def list_view_artifacts(dir_path: Path) -> list[dict[str, Any]]:
+    return [_load_json(p) for p in sorted(dir_path.glob("*.mp4.cosmos_view.v1.json"))]
+
+
+def map_artifacts_by_sha(dir_path: Path) -> dict[str, dict[str, Any]]:
+    """Return mapping from output sha256 to artifact for both clip and view files.
+
+    Keys are artifact["output"]["sha256"].
+    """
+    m: dict[str, dict[str, Any]] = {}
+    for a in list_clip_artifacts(dir_path) + list_view_artifacts(dir_path):
+        out = (a.get("output") or {})
+        sha = out.get("sha256")
+        if isinstance(sha, str):
+            m[sha] = a
+    return m
+
+
+def find_clip_for_file(file_path: Path) -> dict[str, Any] | None:
+    """Compute sha256(file) and search sibling .cosmos_clip.v1.json by sha.
+
+    Returns the loaded artifact dict or None.
+    """
+    sha = sha256_file(file_path)
+    for meta in list_clip_artifacts(file_path.parent):
+        if ((meta.get("output") or {}).get("sha256")) == sha:
+            return meta
+    return None
+
+
+def find_view_for_file(file_path: Path) -> dict[str, Any] | None:
+    sha = sha256_file(file_path)
+    for meta in list_view_artifacts(file_path.parent):
+        if ((meta.get("output") or {}).get("sha256")) == sha:
+            return meta
+    return None
+

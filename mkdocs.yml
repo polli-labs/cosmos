@@ -9,6 +9,7 @@ theme:
     - navigation.top
 nav:
   - Home: index.md
+  - Provenance: provenance.md
   - Ingest:
       - User Guide: ingest-user-guide.md
       - CLI Reference: ingest-reference.md
@@ -20,6 +21,11 @@ nav:
       - cosmos CLI: cosmos-cli.md
       - squarecrop CLI: squarecrop-cli.md
   - SDK: sdk.md
+  - Schemas:
+      - ingest_run.v1.json: schemas/ingest_run.v1.json
+      - clip.v1.json: schemas/clip.v1.json
+      - crop_run.v1.json: schemas/crop_run.v1.json
+      - view.v1.json: schemas/view.v1.json
 plugins:
   - search
   - mkdocstrings:

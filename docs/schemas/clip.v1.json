@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/clip.v1.json",
+  "title": "Cosmos Ingest Clip Artifact (v1)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "clip_id",
+    "ingest_run_id",
+    "output",
+    "video"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "clip_id": {"type": "string"},
+    "ingest_run_id": {"type": "string"},
+    "name": {"type": "string"},
+    "time_ms": {
+      "type": "object",
+      "properties": {"t0": {"type": "number"}, "t1": {"type": "number"}}
+    },
+    "frames": {
+      "type": "object",
+      "properties": {"start": {"type": "integer"}, "end": {"type": "integer"}}
+    },
+    "output": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string"},
+        "bytes": {"type": "integer"}
+      }
+    },
+    "video": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "fps": {"type": "number"},
+        "pix_fmt": {"type": "string"},
+        "color_space": {"type": "string"}
+      }
+    },
+    "encode": {
+      "type": "object",
+      "properties": {
+        "codec": {"type": "string"},
+        "impl": {"type": "string"},
+        "crf": {"type": "integer"},
+        "preset": {"type": "string"},
+        "filtergraph": {"type": "string"}
+      }
+    },
+    "env": {"type": "object"}
+  }
+}

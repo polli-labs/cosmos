@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/view.v1.json",
+  "title": "Cosmos Crop View Artifact (v1)",
+  "type": "object",
+  "required": ["schema_version", "view_id", "crop_run_id", "source", "output", "video", "crop"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "view_id": {"type": "string"},
+    "crop_run_id": {"type": "string"},
+    "job_ref": {"type": "string"},
+    "source": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string"}
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": {"type": "string"},
+        "sha256": {"type": "string"},
+        "bytes": {"type": "integer"}
+      }
+    },
+    "video": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": {"type": "integer"},
+        "height": {"type": "integer"},
+        "fps": {"type": "number"},
+        "pix_fmt": {"type": "string"},
+        "color_space": {"type": "string"}
+      }
+    },
+    "crop": {
+      "type": "object",
+      "properties": {
+        "size": {"type": "integer"},
+        "center_x": {"type": "number"},
+        "center_y": {"type": "number"},
+        "start": {"type": "number"},
+        "end": {"type": "number"}
+      }
+    },
+    "encode": {"type": "object"},
+    "env": {"type": "object"}
+  }
+}
