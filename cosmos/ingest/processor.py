@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING  # noqa: F401
+from typing import TYPE_CHECKING  # noqa: F401  # (kept for potential future typing guards)
 
 # ruff: noqa: UP035,S603,S607
 import subprocess
@@ -19,6 +19,7 @@ from .validation import ClipValidationResult, SegmentInfo
 # Ensure a Windows-specific constant exists for tests on non-Windows platforms
 # Provide a shim for tests on non-Windows platforms
 if not hasattr(subprocess, "CREATE_NO_WINDOW"):
+    # Assigning is safe here and used only in tests on non-Windows
     subprocess.CREATE_NO_WINDOW = 0  # type: ignore[attr-defined]
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
