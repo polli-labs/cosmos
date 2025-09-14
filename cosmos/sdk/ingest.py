@@ -16,6 +16,10 @@ from cosmos.ingest.processor import (
 )
 from cosmos.ingest.validation import InputValidator
 from cosmos.utils.io import ensure_dir, find_videos
+from cosmos.sdk.provenance import (
+    emit_clip_artifact,
+    emit_ingest_run,
+)
 
 
 @dataclass
@@ -89,6 +93,25 @@ def ingest(  # noqa: C901
     po.window_seconds = options.window_seconds
     processor = VideoProcessor(output_dir, proc_opts)
 
+    # Emit run-level provenance (after processor init so we can record encoder prefs)
+    ingest_run_id, _run_path = emit_ingest_run(
+        output_dir=output_dir,
+        input_dir=input_dir,
+        manifest_path=manifest_path,
+        options={
+            "resolution": [options.width, options.height],
+            "quality_mode": options.quality_mode,
+            "low_memory": options.low_memory,
+            "crf": options.crf,
+            "scale_filter": scale_filter,
+            "filter_threads": options.filter_threads,
+            "filter_complex_threads": options.filter_complex_threads,
+            "decode": options.decode,
+            "window_seconds": options.window_seconds,
+        },
+        encoders_preference=[e.value for e in processor._available_encoders],
+    )
+
     # Validate each clip and process
     plan: dict[str, Any] | None = {
         "tool": "cosmos-ingest",
@@ -137,6 +160,21 @@ def ingest(  # noqa: C901
             res = processor.process_clip(clip_result)
         if res.output_path is None:
             continue
+        # Emit per-clip provenance on successful encode
+        if not options.dry_run and res.success and res.output_path.exists():
+            try:
+                encode_info = {"impl": res.used_encoder, "filtergraph": processor._build_filter_complex(), "crf": options.crf}
+                emit_clip_artifact(
+                    ingest_run_id=ingest_run_id,
+                    clip_name=clip.name,
+                    output_path=res.output_path,
+                    encode_info=encode_info,
+                    time_ms=(clip.start_pos.to_seconds() * 1000.0, (clip.start_pos.to_seconds() + clip.duration) * 1000.0),
+                    frames=(clip.start_idx, clip.end_idx),
+                )
+            except Exception:
+                # Non-fatal if provenance emission fails
+                pass
         results.append(res.output_path)
     if options.dry_run and plan is not None:
         out_json = output_dir / "cosmos_dry_run.json"

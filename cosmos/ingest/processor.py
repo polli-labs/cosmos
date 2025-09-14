@@ -68,6 +68,7 @@ class ProcessingResult:
     frames_processed: int
     success: bool
     error: str | None = None
+    used_encoder: str | None = None
 
 
 class VideoProcessor:
@@ -230,6 +231,7 @@ class VideoProcessor:
                         duration=duration,
                         frames_processed=frames,
                         success=True,
+                        used_encoder=encoder.value,
                     )
                 except subprocess.SubprocessError as e:
                     last_error = str(e)

@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/ingest_run.v1.json",
+  "title": "Cosmos Ingest Run (v1)",
+  "type": "object",
+  "required": ["schema_version", "ingest_run_id", "tool", "time", "input_dir", "output_dir", "options"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "ingest_run_id": {"type": "string"},
+    "tool": {"type": "string"},
+    "version": {"type": "string"},
+    "git": {"type": "string"},
+    "time": {"type": "string", "format": "date-time"},
+    "input_dir": {"type": "string"},
+    "manifest": {"type": "string"},
+    "output_dir": {"type": "string"},
+    "encoders_preference": {"type": "array", "items": {"type": "string"}},
+    "ffmpeg": {
+      "type": "object",
+      "properties": {
+        "version": {"type": "string"},
+        "path": {"type": "string"}
+      }
+    },
+    "system": {
+      "type": "object",
+      "properties": {
+        "os": {"type": "string"},
+        "python": {"type": "string"},
+        "cpu_count": {"type": "integer"},
+        "memory_gb": {"type": "number"}
+      }
+    },
+    "options": {"type": "object"}
+  }
+}
+
