@@ -41,7 +41,7 @@ def run_square_crop(
 ) -> list[str]:
     """Run or return ffmpeg args for a single square crop job."""
     ensure_ffmpeg_available()
-    encoder = choose_encoder()
+    encoder = choose_encoder() if not dry_run else "libx264"
     args = build_square_crop_args(
         input_video,
         output_path,
