@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 # ruff: noqa: UP035,S603,S607
 import subprocess
@@ -16,6 +17,11 @@ from .manifest import ClipInfo
 from .validation import ClipValidationResult, SegmentInfo
 
 # Ensure a Windows-specific constant exists for tests on non-Windows platforms
+if not hasattr(subprocess, "CREATE_NO_WINDOW"):
+    try:
+        setattr(subprocess, "CREATE_NO_WINDOW", 0)  # type: ignore[misc]
+    except Exception:  # pragma: no cover
+        pass
 CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
