@@ -15,8 +15,10 @@ from .manifest import ClipInfo
 from .validation import ClipValidationResult, SegmentInfo
 
 # Ensure a Windows-specific constant exists for tests on non-Windows platforms
-if not hasattr(subprocess, "CREATE_NO_WINDOW"):
-    subprocess.CREATE_NO_WINDOW = 0  # type: ignore[attr-defined]
+try:
+    CREATE_NO_WINDOW = subprocess.CREATE_NO_WINDOW  # type: ignore[attr-defined]
+except Exception:  # pragma: no cover
+    CREATE_NO_WINDOW = 0
 
 
 class ProcessingMode(Enum):
@@ -201,7 +203,7 @@ class VideoProcessor:
                     cmd.extend(memory_opts)
                     cmd.append(str(output_path))
 
-                    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                    creation_flags = CREATE_NO_WINDOW
 
                     # write command and capture logs
                     try:

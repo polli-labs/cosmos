@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
@@ -115,7 +115,7 @@ def ingest(  # noqa: C901
     # Validate each clip and process
     plan: dict[str, Any] | None = {
         "tool": "cosmos-ingest",
-        "time": datetime.now(UTC).isoformat(),
+        "time": datetime.now(timezone.utc).isoformat(),
         "input_dir": str(input_dir),
         "manifest": str(manifest_path),
         "output_dir": str(output_dir),

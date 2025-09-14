@@ -9,10 +9,10 @@ import shutil
 import subprocess
 import sys
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from importlib.metadata import version as pkg_version
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 # -----------------------------
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return datetime.now(timezone.utc).isoformat()
 
 
 def sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
@@ -292,7 +292,7 @@ def emit_crop_view(
 
 def _load_json(path: Path) -> dict[str, Any]:
     try:
-        return json.loads(path.read_text())
+        return cast(dict[str, Any], json.loads(path.read_text()))
     except Exception:
         return {}
 
