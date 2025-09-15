@@ -7,6 +7,12 @@ theme:
   features:
     - navigation.sections
     - navigation.top
+  logo: https://assets.polli.ai/docs-brand/v1.0.3/wordmarks/cosmos.svg
+  logo_dark: https://assets.polli.ai/docs-brand/v1.0.3/wordmarks/cosmos.svg
+extra_css:
+  - https://assets.polli.ai/docs-brand/v1.0.3/polli-brand.css
+extra_javascript:
+  - https://assets.polli.ai/docs-brand/v1.0.3/polli-brand.js
 nav:
   - Home: index.md
   - Provenance: provenance.md
