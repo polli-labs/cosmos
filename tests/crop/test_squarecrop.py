@@ -1,8 +1,12 @@
+import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from cosmos.crop.squarecrop import CropRunResult, SquareCropSpec, build_crop_filter, run_square_crop
+
+ffmpeg_missing = shutil.which("ffmpeg") is None
 
 
 def test_build_crop_filter_center():
@@ -12,6 +16,8 @@ def test_build_crop_filter_center():
 
 
 def test_run_square_crop_builds_args(tmp_path: Path):
+    if ffmpeg_missing:
+        pytest.skip("ffmpeg not available")
     inp = tmp_path / "in.mp4"
     inp.write_bytes(b"")
     out = tmp_path / "out.mp4"
@@ -65,6 +71,8 @@ def test_offsets_and_centers_mutually_exclusive():
 
 
 def test_hardware_fallback_to_software(tmp_path: Path, monkeypatch) -> None:
+    if ffmpeg_missing:
+        pytest.skip("ffmpeg not available")
     inp = tmp_path / "in.mp4"
     inp.write_bytes(b"video")
     out = tmp_path / "out.mp4"

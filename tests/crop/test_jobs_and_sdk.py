@@ -1,8 +1,11 @@
+import shutil
 from pathlib import Path
 
 import pytest
 from cosmos.crop.jobs import parse_jobs_json
 from cosmos.sdk.crop import CropJob, crop
+
+ffmpeg_missing = shutil.which("ffmpeg") is None
 
 
 def test_parse_jobs_rejects_out_of_range_offset(tmp_path: Path) -> None:
@@ -13,6 +16,8 @@ def test_parse_jobs_rejects_out_of_range_offset(tmp_path: Path) -> None:
 
 
 def test_crop_runs_all_jobs_and_targets(tmp_path: Path) -> None:
+    if ffmpeg_missing:
+        pytest.skip("ffmpeg not available")
     video = tmp_path / "in.mp4"
     video.write_bytes(b"")  # dummy input
     jobs = [

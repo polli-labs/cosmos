@@ -66,8 +66,7 @@ def run_square_crop(
     dry_run: bool = False,
 ) -> CropRunResult:
     """Run or return ffmpeg args for a single square crop job."""
-    ensure_ffmpeg_available()
-    encoder = choose_encoder() if not dry_run else "libx264"
+    encoder = "libx264" if dry_run else choose_encoder()
     crop_filter = build_crop_filter(spec)
 
     def _build_args(enc: str) -> list[str]:
@@ -83,6 +82,8 @@ def run_square_crop(
     args = _build_args(encoder)
     if dry_run:
         return CropRunResult(args=args, encoder_used=encoder, encoder_attempted=encoder)
+
+    ensure_ffmpeg_available()
 
     try:
         subprocess.run(args, check=True, capture_output=True, text=True)  # noqa: S603

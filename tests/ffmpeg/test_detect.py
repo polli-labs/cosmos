@@ -1,4 +1,10 @@
+import shutil
 from unittest.mock import patch
+
+import pytest
+
+if shutil.which("ffmpeg") is None:
+    pytest.skip("ffmpeg not available on PATH", allow_module_level=True)
 
 from cosmos.ffmpeg.detect import choose_encoder
 
