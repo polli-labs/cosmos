@@ -7,13 +7,15 @@ Unified ingest + post‑processing toolkit
 
 Two CLIs, one SDK. TUI‑first UX with a stable programmatic API.
 
-## Install (uv)
+## Install
 
-```
-uv venv .venv
-. .venv/bin/activate
-uv pip install -e ".[dev]"
-```
+- Production: `pip install polli-cosmos`
+- Dev (uv): 
+  ```
+  uv venv .venv
+  . .venv/bin/activate
+  uv pip install -e ".[dev]"
+  ```
 
 ## CLI quickstart
 
