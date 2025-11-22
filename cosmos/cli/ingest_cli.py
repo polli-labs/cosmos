@@ -15,14 +15,29 @@ app = typer.Typer(help="COSM camera MP4 generation (ingest)")
 def run(
     input_dir: Annotated[Path | None, typer.Option(exists=True, dir_okay=True)] = None,
     output_dir: Annotated[Path | None, typer.Option(dir_okay=True)] = None,
-    non_interactive: Annotated[bool, typer.Option("--yes", help="Skip interactive prompts")] = False,
-    dry_run: Annotated[bool, typer.Option("--dry-run", help="Build commands; do not execute")]= False,
-    clips: Annotated[list[str] | None, typer.Option("--clip", help="Only process these clip names (repeatable)")] = None,
-    scale_filter: Annotated[str | None, typer.Option("--scale-filter", help="scale filter (lanczos|bicubic|spline36|bilinear)")] = None,
-    filter_threads: Annotated[int | None, typer.Option("--filter-threads", help="-filter_threads")]= None,
-    filter_complex_threads: Annotated[int | None, typer.Option("--fc-threads", help="-filter_complex_threads")]= None,
-    decode: Annotated[str, typer.Option("--decode", help="decode mode: auto|hw|sw")]= "auto",
-    window_seconds: Annotated[float | None, typer.Option("--window", help="Process only first N seconds")]= None,
+    non_interactive: Annotated[
+        bool, typer.Option("--yes", help="Skip interactive prompts")
+    ] = False,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Build commands; do not execute")
+    ] = False,
+    clips: Annotated[
+        list[str] | None, typer.Option("--clip", help="Only process these clip names (repeatable)")
+    ] = None,
+    scale_filter: Annotated[
+        str | None,
+        typer.Option("--scale-filter", help="scale filter (lanczos|bicubic|spline36|bilinear)"),
+    ] = None,
+    filter_threads: Annotated[
+        int | None, typer.Option("--filter-threads", help="-filter_threads")
+    ] = None,
+    filter_complex_threads: Annotated[
+        int | None, typer.Option("--fc-threads", help="-filter_complex_threads")
+    ] = None,
+    decode: Annotated[str, typer.Option("--decode", help="decode mode: auto|hw|sw")] = "auto",
+    window_seconds: Annotated[
+        float | None, typer.Option("--window", help="Process only first N seconds")
+    ] = None,
 ) -> None:
     """Run interactive or non-interactive ingest."""
     if not non_interactive:

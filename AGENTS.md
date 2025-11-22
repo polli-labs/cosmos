@@ -55,3 +55,15 @@ Issue Tracking & Labels
 Notes & Non‑Goals
 - Avoid client‑specific references or paths in this repo. Keep documentation and examples generic and public‑ready.
 - Heavy fixtures for E2E are optional and not required for CI; local devs can enable them via environment flags noted in README and tests.
+
+Squarecrop semantics (hard migration)
+
+- Prefer offsets: `offset_x`/`offset_y` are relative to available margin in [-1,1]; 0=center; +right/down.
+- Alternative absolute centers: `center_x`/`center_y` in [0,1]. If provided, offsets are ignored.
+- Jobs parser accepts either form; TUIs/CLIs route through the SDK.
+
+Agent flows (non-interactive)
+- Ingest: `make run.ingest IN=/path/to/raw OUT=/path/to/out YES=1` (add optional WINDOW/CLIPS).
+- Squarecrop: `make run.crop INPUT=clip.mp4 OUT=_work/out JOBS=job.json YES=1` or set `--offset-x/--offset-y --size` (offsets margin-relative [-1,1]; do not combine with centers).
+- Provenance mapping: `make run.provenance DIR=_work/out`.
+Example (Ladybird mirrored data): `squarecrop run --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`

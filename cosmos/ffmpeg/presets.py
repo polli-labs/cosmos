@@ -24,7 +24,9 @@ def default_crf(mode: Quality) -> int:
     }[mode]
 
 
-def build_encoder_settings(encoder: str, *, mode: str, crf: int | None = None, threads: int | None = None) -> list[str]:
+def build_encoder_settings(
+    encoder: str, *, mode: str, crf: int | None = None, threads: int | None = None
+) -> list[str]:
     """Return ffmpeg args for encoder settings based on mode and crf/thread overrides."""
     # Normalize mode
     m = str(mode).lower()
@@ -63,7 +65,14 @@ def build_encoder_settings(encoder: str, *, mode: str, crf: int | None = None, t
             str(crf_val),
         ]
     # libx264 default
-    args = ["-c:v", Encoder.X264.value, "-preset", ("slower" if mode == "quality" else "medium"), "-crf", str(crf_val)]
+    args = [
+        "-c:v",
+        Encoder.X264.value,
+        "-preset",
+        ("slower" if mode == "quality" else "medium"),
+        "-crf",
+        str(crf_val),
+    ]
     if threads is not None:
         args += ["-threads", str(threads), "-x264-params", f"threads={threads}"]
     return args

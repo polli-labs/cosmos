@@ -9,5 +9,6 @@ def pytest_configure(config: pytest.Config) -> None:
 
 def require_localdata() -> None:
     if os.environ.get("COSMOS_ENABLE_LOCAL_TESTS") != "1":
-        pytest.skip("Set COSMOS_ENABLE_LOCAL_TESTS=1 to run local data tests", allow_module_level=True)
-
+        pytest.skip(
+            "Set COSMOS_ENABLE_LOCAL_TESTS=1 to run local data tests", allow_module_level=True
+        )

@@ -26,16 +26,17 @@ CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 class ProcessingMode(Enum):
-    QUALITY = "quality"        # Highest quality, all threads
-    BALANCED = "balanced"      # Good quality, all threads
-    PERFORMANCE = "performance"      # Faster, all threads
+    QUALITY = "quality"  # Highest quality, all threads
+    BALANCED = "balanced"  # Good quality, all threads
+    PERFORMANCE = "performance"  # Faster, all threads
     LOW_MEMORY = "low_memory"  # Half threads
-    MINIMAL = "minimal"        # Single thread
+    MINIMAL = "minimal"  # Single thread
 
 
 @dataclass
 class ProcessingOptions:
     """Configuration for video processing"""
+
     output_resolution: tuple[int, int]  # Width, height
     quality_mode: ProcessingMode
     low_memory: bool = False
@@ -78,7 +79,9 @@ class ProcessingResult:
 
 
 class VideoProcessor:
-    def __init__(self, output_dir: Path, options: ProcessingOptions, logger: logging.Logger | None = None):
+    def __init__(
+        self, output_dir: Path, options: ProcessingOptions, logger: logging.Logger | None = None
+    ):
         self.output_dir = output_dir
         self.options = options
         self.logger = logger or logging.getLogger(__name__)
@@ -108,7 +111,9 @@ class VideoProcessor:
             available = [EncoderType.SOFTWARE_X264]
         return available
 
-    def _get_encoder_settings(self, encoder: EncoderType, thread_count: int | None = None) -> list[str]:
+    def _get_encoder_settings(
+        self, encoder: EncoderType, thread_count: int | None = None
+    ) -> list[str]:
         mode_map = {
             ProcessingMode.QUALITY: "quality",
             ProcessingMode.BALANCED: "balanced",
@@ -117,7 +122,9 @@ class VideoProcessor:
             ProcessingMode.MINIMAL: "minimal",
         }
         mode = mode_map[self.options.quality_mode]
-        return build_encoder_settings(encoder.value, mode=mode, crf=self.options.crf, threads=thread_count)
+        return build_encoder_settings(
+            encoder.value, mode=mode, crf=self.options.crf, threads=thread_count
+        )
 
     def _build_filter_complex(self, crop_overlap: int = 32) -> str:
         tile_processing = (
@@ -146,6 +153,7 @@ class VideoProcessor:
     def process_clip(self, clip_result: ClipValidationResult) -> ProcessingResult:  # noqa: C901
         try:
             from typing import Any, cast
+
             opt = cast(Any, self.options)
             output_path = self.output_dir / f"{clip_result.clip.name}.mp4"
             concat_file = self._create_concat_file(clip_result.segments)
@@ -195,8 +203,18 @@ class VideoProcessor:
                         "[out]",
                     ]
                     memory_opts: list[str] = []
-                    if self.options.low_memory or self.options.quality_mode in [ProcessingMode.LOW_MEMORY, ProcessingMode.MINIMAL]:
-                        memory_opts = ["-max_muxing_queue_size", "1024", "-tile-columns", "0", "-frame-parallel", "0"]
+                    if self.options.low_memory or self.options.quality_mode in [
+                        ProcessingMode.LOW_MEMORY,
+                        ProcessingMode.MINIMAL,
+                    ]:
+                        memory_opts = [
+                            "-max_muxing_queue_size",
+                            "1024",
+                            "-tile-columns",
+                            "0",
+                            "-frame-parallel",
+                            "0",
+                        ]
                     ft = getattr(opt, "filter_threads", None)
                     fct = getattr(opt, "filter_complex_threads", None)
                     if ft:
@@ -211,7 +229,9 @@ class VideoProcessor:
 
                     # write command and capture logs
                     try:
-                        output_path.with_suffix(output_path.suffix + ".cmd.txt").write_text(" ".join(cmd))
+                        output_path.with_suffix(output_path.suffix + ".cmd.txt").write_text(
+                            " ".join(cmd)
+                        )
                     except Exception as e:
                         logging.getLogger(__name__).debug("failed to write cmd file: %s", e)
 
@@ -225,7 +245,9 @@ class VideoProcessor:
                         creationflags=creation_flags,
                     )
                     try:
-                        output_path.with_suffix(output_path.suffix + ".log.txt").write_text((result.stdout or "") + "\n" + (result.stderr or ""))
+                        output_path.with_suffix(output_path.suffix + ".log.txt").write_text(
+                            (result.stdout or "") + "\n" + (result.stderr or "")
+                        )
                     except Exception as e:
                         logging.getLogger(__name__).debug("failed to write log file: %s", e)
                     _ = result

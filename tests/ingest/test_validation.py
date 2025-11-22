@@ -22,11 +22,15 @@ def sample_manifest(tmp_path: Path) -> Path:
     return p
 
 
-def test_validate_system_ffmpeg_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, sample_manifest: Path) -> None:
+def test_validate_system_ffmpeg_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, sample_manifest: Path
+) -> None:
     parser = ManifestParser(sample_manifest)
     v = InputValidator(tmp_path, tmp_path, parser)
+
     def fake_run(*_args, **_kwargs):
         raise FileNotFoundError
+
     monkeypatch.setattr(subprocess, "run", fake_run)
     issues = v.validate_system()
     assert any(i.level == ValidationLevel.ERROR and "FFmpeg" in i.message for i in issues)
@@ -56,4 +60,3 @@ def test_validate_clip_paths(tmp_path: Path, sample_manifest: Path) -> None:
     result = v.validate_clip(clip)
     assert result.clip.name == "CLIP1"
     assert not result.segments
-

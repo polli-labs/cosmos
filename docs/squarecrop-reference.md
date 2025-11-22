@@ -26,7 +26,11 @@ squarecrop run --jobs-file /path/jobs.json --input a.mp4 --input b.mp4 --out-dir
 
 Jobs file fields
 - `targets`: list of square sizes (e.g., `[640,1080]`).
-- `offset_x`, `offset_y`: fractional offsets from center (0.0..1.0 typical).
+- `offset_x`, `offset_y`: relative-to-margin offsets in range [-1.0, 1.0]. 0 means centered; positive is right/down; negative is left/up. This mirrors legacy CENTER_TARGET behavior. Offsets take precedence over centers.
+- `center_x`, `center_y` (optional): absolute center in [0.0, 1.0] of full width/height (used when offsets are not set). Do not combine offsets with centers.
 - `trim_unit`: currently `time`.
 - `trim_start`, `trim_end`: strings or numbers representing seconds, applied when `trim_unit` is `time`.
 
+Notes
+- Multiple jobs/targets are all applied per input; outputs are named with job and size markers for traceability.
+- Provenance: each output gets `.cosmos_view.v1.json` with crop offsets/centers, trim info, video width/height/duration/fps, and stable `view_id`.

@@ -42,4 +42,3 @@ def test_squarecrop_known_good_hashes() -> None:
             size, digest = sha256sum(p)
             assert size == meta["size"], f"size mismatch for {p}"
             assert digest == meta["sha256"], f"sha mismatch for {p}"
-

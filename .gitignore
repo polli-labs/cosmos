@@ -16,6 +16,8 @@ PROJECT_NARRATIVE.md
 .cursorindexingignore
 .cursorignore
 *_export.txt
+_work/
+.venv_crop/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

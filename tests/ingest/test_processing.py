@@ -48,7 +48,9 @@ def mock_segments(tmp_path: Path) -> list[SegmentInfo]:
 
 
 @pytest.fixture
-def mock_validation_result(mock_clip_info: ClipInfo, mock_segments: list[SegmentInfo]) -> ClipValidationResult:
+def mock_validation_result(
+    mock_clip_info: ClipInfo, mock_segments: list[SegmentInfo]
+) -> ClipValidationResult:
     return ClipValidationResult(
         clip=mock_clip_info,
         segments=mock_segments,
@@ -60,7 +62,9 @@ def mock_validation_result(mock_clip_info: ClipInfo, mock_segments: list[Segment
 
 @pytest.fixture
 def processor(tmp_path: Path) -> VideoProcessor:
-    options = ProcessingOptions(output_resolution=(3840, 2160), quality_mode=ProcessingMode.BALANCED)
+    options = ProcessingOptions(
+        output_resolution=(3840, 2160), quality_mode=ProcessingMode.BALANCED
+    )
     return VideoProcessor(tmp_path / "output", options)
 
 
@@ -78,7 +82,9 @@ class TestVideoProcessor:
             encoders = processor._detect_encoders()
             assert EncoderType.NVIDIA_NVENC in encoders
             assert EncoderType.SOFTWARE_X264 in encoders
-            assert encoders.index(EncoderType.NVIDIA_NVENC) < encoders.index(EncoderType.SOFTWARE_X264)
+            assert encoders.index(EncoderType.NVIDIA_NVENC) < encoders.index(
+                EncoderType.SOFTWARE_X264
+            )
 
     def test_encoder_detection_fallback(self, processor: VideoProcessor) -> None:
         with patch("subprocess.run") as mock_run:
@@ -94,7 +100,9 @@ class TestVideoProcessor:
         assert "vstack=2" in filter_complex
 
     def test_encoder_settings_quality_modes(self, processor: VideoProcessor) -> None:
-        options = ProcessingOptions(output_resolution=(3840, 2160), quality_mode=ProcessingMode.QUALITY)
+        options = ProcessingOptions(
+            output_resolution=(3840, 2160), quality_mode=ProcessingMode.QUALITY
+        )
         processor.options = options
         settings = processor._get_encoder_settings(EncoderType.SOFTWARE_X264)
         assert "slower" in settings
@@ -111,9 +119,13 @@ class TestVideoProcessor:
         import multiprocessing
 
         total_threads = multiprocessing.cpu_count()
-        options = ProcessingOptions(output_resolution=(3840, 2160), quality_mode=ProcessingMode.LOW_MEMORY)
+        options = ProcessingOptions(
+            output_resolution=(3840, 2160), quality_mode=ProcessingMode.LOW_MEMORY
+        )
         processor.options = options
-        settings = processor._get_encoder_settings(EncoderType.SOFTWARE_X264, thread_count=total_threads // 2)
+        settings = processor._get_encoder_settings(
+            EncoderType.SOFTWARE_X264, thread_count=total_threads // 2
+        )
         assert "-threads" in settings
         assert str(total_threads // 2) in settings
 
@@ -123,7 +135,9 @@ class TestVideoProcessor:
         assert "1" in settings
 
     @pytest.mark.parametrize("platform", ["win32", "linux", "darwin"])  # type: ignore[misc]
-    def test_cross_platform_paths(self, processor: VideoProcessor, mock_validation_result: ClipValidationResult, platform: str) -> None:
+    def test_cross_platform_paths(
+        self, processor: VideoProcessor, mock_validation_result: ClipValidationResult, platform: str
+    ) -> None:
         with patch("os.name", platform):
             concat_file = processor._create_concat_file(mock_validation_result.segments)
             with open(concat_file) as f:
@@ -132,29 +146,37 @@ class TestVideoProcessor:
             assert all(line.startswith("file '") for line in content.splitlines() if line)
 
     @patch("subprocess.run")
-    def test_process_clip(self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult) -> None:  # type: ignore[no-untyped-def]
+    def test_process_clip(
+        self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult
+    ) -> None:  # type: ignore[no-untyped-def]
         mock_run.return_value.returncode = 0
         result = processor.process_clip(mock_validation_result)
         assert result.success
         assert result.frames_processed > 0
-        assert result.output_path and result.output_path.name == f"{mock_validation_result.clip.name}.mp4"
+        assert (
+            result.output_path
+            and result.output_path.name == f"{mock_validation_result.clip.name}.mp4"
+        )
         assert mock_run.called
         cmd_args = mock_run.call_args[0][0]
         assert "ffmpeg" in cmd_args
         assert "-filter_complex" in cmd_args
 
     @patch("subprocess.run")
-    def test_process_clip_error_handling(self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult) -> None:  # type: ignore[no-untyped-def]
+    def test_process_clip_error_handling(
+        self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult
+    ) -> None:  # type: ignore[no-untyped-def]
         mock_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg")
         result = processor.process_clip(mock_validation_result)
         assert not result.success
         assert result.error is not None
 
-    def test_windows_specific_flags(self, processor: VideoProcessor, mock_validation_result: ClipValidationResult) -> None:
+    def test_windows_specific_flags(
+        self, processor: VideoProcessor, mock_validation_result: ClipValidationResult
+    ) -> None:
         with patch("os.name", "nt"):
             with patch("subprocess.run") as mock_run:
                 mock_run.return_value.returncode = 0
                 processor.process_clip(mock_validation_result)
                 assert "creationflags" in mock_run.call_args[1]
                 assert mock_run.call_args[1]["creationflags"] == subprocess.CREATE_NO_WINDOW
-

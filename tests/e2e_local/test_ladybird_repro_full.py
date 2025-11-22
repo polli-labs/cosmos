@@ -16,6 +16,7 @@ def sha256sum(path: Path) -> tuple[int, str]:
             total += len(chunk)
     return total, h.hexdigest()
 
+
 def _load_expected() -> dict:
     return json.loads(Path("dev/fixtures/expected/ladybird_ingest_v1.json").read_text())
 

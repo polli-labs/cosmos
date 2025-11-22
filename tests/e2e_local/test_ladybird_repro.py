@@ -27,8 +27,15 @@ def test_ladybird_known_good_outputs_match_manifest() -> None:
     if os.environ.get("COSMOS_ENABLE_LOCAL_TESTS") != "1":
         pytest.skip("Set COSMOS_ENABLE_LOCAL_TESTS=1 to run local data tests")
     exp = _load_expected()["outputs"]
-    cache_dir = Path(os.environ.get("COSMOS_FIXTURES_DIR", "dev/fixtures/cache")) / "outputs/batch0_full_9.5k_18crf"
-    good_dir = cache_dir if cache_dir.exists() else Path("/Users/carbon/Data/clients/ladybird/batch_0/batch0_full_9.5k_18crf")
+    cache_dir = (
+        Path(os.environ.get("COSMOS_FIXTURES_DIR", "dev/fixtures/cache"))
+        / "outputs/batch0_full_9.5k_18crf"
+    )
+    good_dir = (
+        cache_dir
+        if cache_dir.exists()
+        else Path("/Users/carbon/Data/clients/ladybird/batch_0/batch0_full_9.5k_18crf")
+    )
     if not good_dir.exists():
         pytest.skip("Known-good outputs not present locally or in cache; skip")
     for name, meta in exp.items():
@@ -72,5 +79,8 @@ def test_ladybird_ingest_reproduce(tmp_path: Path) -> None:
         cmd = p.with_suffix(p.suffix + ".cmd.txt")
         assert cmd.exists(), f"missing cmd log for {p}"
         cmdline = cmd.read_text()
-        assert any(enc in cmdline for enc in ["h264_videotoolbox", "h264_nvenc", "h264_qsv", "h264_amf", "libx264"])
+        assert any(
+            enc in cmdline
+            for enc in ["h264_videotoolbox", "h264_nvenc", "h264_qsv", "h264_amf", "libx264"]
+        )
         assert ":flags=bicubic" in cmdline

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import json
 import os
 import platform
@@ -20,6 +21,7 @@ from pydantic import BaseModel, Field
 # -----------------------------
 # Shared helpers
 # -----------------------------
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -54,7 +56,9 @@ def ffprobe_video(path: Path) -> dict[str, Any]:
                 "-select_streams",
                 "v:0",
                 "-show_entries",
-                "stream=width,height,r_frame_rate,pix_fmt,color_space",
+                "stream=width,height,r_frame_rate,duration,pix_fmt,color_space",
+                "-show_entries",
+                "format=duration",
                 "-of",
                 "json",
                 str(path),
@@ -67,13 +71,33 @@ def ffprobe_video(path: Path) -> dict[str, Any]:
         s = (data.get("streams") or [{}])[0]
         w = int(s.get("width") or 0)
         h = int(s.get("height") or 0)
+        dur_stream = s.get("duration")
+        dur_format = (data.get("format") or {}).get("duration")
+        duration = None
+        for cand in (dur_stream, dur_format):
+            if cand is None:
+                continue
+            try:
+                duration = float(cand)
+                break
+            except Exception as exc:  # pragma: no cover - fallback only
+                logging.getLogger(__name__).debug("ffprobe duration parse failed: %s", exc)
         pix = s.get("pix_fmt") or ""
         cs = s.get("color_space") or ""
         fps = 0.0
         if s.get("r_frame_rate") and s["r_frame_rate"] != "0/0":
             num, den = s["r_frame_rate"].split("/")
             fps = (float(num) / float(den)) if float(den) else 0.0
-        return {"width": w, "height": h, "fps": fps, "pix_fmt": pix, "color_space": cs}
+        return {
+            "width": w,
+            "height": h,
+            "width_px": w,
+            "height_px": h,
+            "fps": fps or None,
+            "duration_sec": duration,
+            "pix_fmt": pix,
+            "color_space": cs,
+        }
     except Exception:
         return {"width": 0, "height": 0}
 
@@ -114,7 +138,10 @@ class OutputFile(BaseModel):
 class VideoInfo(BaseModel):
     width: int
     height: int
+    width_px: int | None = None
+    height_px: int | None = None
     fps: float | None = None
+    duration_sec: float | None = None
     pix_fmt: str | None = None
     color_space: str | None = None
 
@@ -166,6 +193,7 @@ class CropView(BaseModel):
     view_id: str
     crop_run_id: str
     job_ref: str | None = None
+    input_clip_id: str | None = None
     source: dict[str, Any]
     output: OutputFile
     video: VideoInfo
@@ -186,6 +214,12 @@ def write_json(path: Path, data: dict[str, Any]) -> None:
 
 def new_id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4()}"
+
+
+def stable_human_id(prefix: str, path: Path, sha: str) -> str:
+    """Return a human-usable id based on filename and sha prefix."""
+    stem = path.stem.replace(" ", "-")
+    return f"{prefix}-{stem}-{sha[:8]}"
 
 
 def emit_ingest_run(
@@ -223,10 +257,11 @@ def emit_clip_artifact(
     frames: tuple[int, int] | None,
 ) -> Path:
     stats = output_path.stat()
-    out_file = OutputFile(path=str(output_path), sha256=sha256_file(output_path), bytes=stats.st_size)
+    sha = sha256_file(output_path)
+    out_file = OutputFile(path=str(output_path), sha256=sha, bytes=stats.st_size)
     vinfo = VideoInfo(**ffprobe_video(output_path))
     clip = ClipArtifact(
-        clip_id=new_id("clip"),
+        clip_id=stable_human_id("clip", output_path, sha),
         ingest_run_id=ingest_run_id,
         name=clip_name,
         time_ms={"t0": time_ms[0], "t1": time_ms[1]} if time_ms else None,
@@ -265,14 +300,21 @@ def emit_crop_view(
     encode_info: dict[str, Any] | None,
     job_ref: str | None = None,
 ) -> Path:
-    source = {"path": str(source_path), "sha256": sha256_file(source_path)}
+    source_sha = sha256_file(source_path)
+    source = {"path": str(source_path), "sha256": source_sha}
+    clip_meta = find_clip_for_file(source_path)
+    source_clip_id = (
+        clip_meta.get("clip_id") if clip_meta else stable_human_id("clip", source_path, source_sha)
+    )
     stats = output_path.stat()
-    out_file = OutputFile(path=str(output_path), sha256=sha256_file(output_path), bytes=stats.st_size)
+    out_sha = sha256_file(output_path)
+    out_file = OutputFile(path=str(output_path), sha256=out_sha, bytes=stats.st_size)
     vinfo = VideoInfo(**ffprobe_video(output_path))
     view = CropView(
-        view_id=new_id("view"),
+        view_id=stable_human_id("view", output_path, out_sha),
         crop_run_id=crop_run_id,
         job_ref=job_ref,
+        input_clip_id=source_clip_id,
         source=source,
         output=out_file,
         video=vinfo,
@@ -312,7 +354,7 @@ def map_artifacts_by_sha(dir_path: Path) -> dict[str, dict[str, Any]]:
     """
     m: dict[str, dict[str, Any]] = {}
     for a in list_clip_artifacts(dir_path) + list_view_artifacts(dir_path):
-        out = (a.get("output") or {})
+        out = a.get("output") or {}
         sha = out.get("sha256")
         if isinstance(sha, str):
             m[sha] = a

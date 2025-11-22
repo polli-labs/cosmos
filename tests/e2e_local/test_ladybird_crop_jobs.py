@@ -24,7 +24,9 @@ def _pick_input_video() -> Path:
 
 
 def _pick_jobs_file() -> Path:
-    files = glob.glob("/Users/carbon/Data/clients/ladybird/cropped/**/job_settings.json", recursive=True)
+    files = glob.glob(
+        "/Users/carbon/Data/clients/ladybird/cropped/**/job_settings.json", recursive=True
+    )
     if not files:
         raise FileNotFoundError("No squarecrop job_settings.json found under ladybird/cropped")
     return Path(files[0])

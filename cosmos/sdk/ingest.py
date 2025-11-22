@@ -77,7 +77,9 @@ def ingest(  # noqa: C901
     }
     quality = mode_map.get(options.quality_mode.lower(), ProcessingMode.BALANCED)
     # Default scale filter by mode if not explicitly provided
-    scale_filter = options.scale_filter or ("lanczos" if quality == ProcessingMode.QUALITY else "bicubic")
+    scale_filter = options.scale_filter or (
+        "lanczos" if quality == ProcessingMode.QUALITY else "bicubic"
+    )
     proc_opts = ProcessingOptions(
         output_resolution=(options.width, options.height),
         quality_mode=quality,
@@ -113,22 +115,26 @@ def ingest(  # noqa: C901
     )
 
     # Validate each clip and process
-    plan: dict[str, Any] | None = {
-        "tool": "cosmos-ingest",
-        "time": datetime.now(timezone.utc).isoformat(),
-        "input_dir": str(input_dir),
-        "manifest": str(manifest_path),
-        "output_dir": str(output_dir),
-        "options": {
-            "resolution": [options.width, options.height],
-            "quality_mode": options.quality_mode,
-            "low_memory": options.low_memory,
-            "crf": options.crf,
-        },
-        "encoders_preference": [e.value for e in processor._available_encoders],
-        "filter_complex": processor._build_filter_complex(),
-        "clips": [],
-    } if options.dry_run else None
+    plan: dict[str, Any] | None = (
+        {
+            "tool": "cosmos-ingest",
+            "time": datetime.now(timezone.utc).isoformat(),
+            "input_dir": str(input_dir),
+            "manifest": str(manifest_path),
+            "output_dir": str(output_dir),
+            "options": {
+                "resolution": [options.width, options.height],
+                "quality_mode": options.quality_mode,
+                "low_memory": options.low_memory,
+                "crf": options.crf,
+            },
+            "encoders_preference": [e.value for e in processor._available_encoders],
+            "filter_complex": processor._build_filter_complex(),
+            "clips": [],
+        }
+        if options.dry_run
+        else None
+    )
     all_clips = parser.get_clips()
     if options.clips:
         wanted = {c.upper() for c in options.clips}
@@ -142,13 +148,15 @@ def ingest(  # noqa: C901
         if options.dry_run:
             planned_out = output_dir / f"{clip.name}.mp4"
             if plan is not None:
-                plan["clips"].append({
-                    "clip": clip.name,
-                    "start_pos": clip.start_pos.to_string(),
-                    "frames": [clip.start_idx, clip.end_idx],
-                    "duration": clip.duration,
-                    "planned_output": str(planned_out),
-                })
+                plan["clips"].append(
+                    {
+                        "clip": clip.name,
+                        "start_pos": clip.start_pos.to_string(),
+                        "frames": [clip.start_idx, clip.end_idx],
+                        "duration": clip.duration,
+                        "planned_output": str(planned_out),
+                    }
+                )
             res = ProcessingResult(
                 clip=clip,
                 output_path=planned_out,
@@ -163,13 +171,20 @@ def ingest(  # noqa: C901
         # Emit per-clip provenance on successful encode
         if not options.dry_run and res.success and res.output_path.exists():
             try:
-                encode_info = {"impl": res.used_encoder, "filtergraph": processor._build_filter_complex(), "crf": options.crf}
+                encode_info = {
+                    "impl": res.used_encoder,
+                    "filtergraph": processor._build_filter_complex(),
+                    "crf": options.crf,
+                }
                 emit_clip_artifact(
                     ingest_run_id=ingest_run_id,
                     clip_name=clip.name,
                     output_path=res.output_path,
                     encode_info=encode_info,
-                    time_ms=(clip.start_pos.to_seconds() * 1000.0, (clip.start_pos.to_seconds() + clip.duration) * 1000.0),
+                    time_ms=(
+                        clip.start_pos.to_seconds() * 1000.0,
+                        (clip.start_pos.to_seconds() + clip.duration) * 1000.0,
+                    ),
                     frames=(clip.start_idx, clip.end_idx),
                 )
             except Exception as e:

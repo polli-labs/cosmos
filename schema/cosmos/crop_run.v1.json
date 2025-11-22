@@ -1,20 +1,19 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://docs.polli.ai/cosmos/schemas/crop_run.v1.json",
-  "title": "Cosmos Crop Run (v1)",
-  "type": "object",
-  "required": ["schema_version", "crop_run_id", "tool", "time", "output_dir", "jobs"],
-  "properties": {
-    "schema_version": {"type": "string"},
-    "crop_run_id": {"type": "string"},
-    "tool": {"type": "string"},
-    "version": {"type": "string"},
-    "git": {"type": "string"},
-    "time": {"type": "string", "format": "date-time"},
-    "output_dir": {"type": "string"},
-    "ffmpeg": {"type": "object"},
-    "system": {"type": "object"},
-    "jobs": {"type": "array", "items": {"type": "object"}}
-  }
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://docs.polli.ai/cosmos/schemas/crop_run.v1.json",
+    "title": "Cosmos Crop Run (v1)",
+    "type": "object",
+    "required": ["schema_version", "crop_run_id", "tool", "time", "output_dir", "jobs"],
+    "properties": {
+        "schema_version": {"type": "string"},
+        "crop_run_id": {"type": "string"},
+        "tool": {"type": "string"},
+        "version": {"type": "string"},
+        "git": {"type": "string"},
+        "time": {"type": "string", "format": "date-time"},
+        "output_dir": {"type": "string"},
+        "ffmpeg": {"type": "object"},
+        "system": {"type": "object"},
+        "jobs": {"type": "array", "items": {"type": "object"}},
+    },
 }
-

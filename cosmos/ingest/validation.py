@@ -15,14 +15,16 @@ from .manifest import ClipInfo, ClipStatus, ManifestParser, Position
 
 class ValidationLevel(Enum):
     """Severity level for validation issues"""
-    ERROR = "error"           # Fatal issue, cannot proceed
-    WARNING = "warning"       # Potential issue, can proceed with caution
-    INFO = "info"             # Informational note
+
+    ERROR = "error"  # Fatal issue, cannot proceed
+    WARNING = "warning"  # Potential issue, can proceed with caution
+    INFO = "info"  # Informational note
 
 
 @dataclass
 class ValidationIssue:
     """Details about a validation problem"""
+
     level: ValidationLevel
     message: str
     context: str | None = None
@@ -32,6 +34,7 @@ class ValidationIssue:
 @dataclass
 class SegmentInfo:
     """Information about a video segment from meta.json"""
+
     directory: Path
     start_time: float
     frame_timestamps: list[float]
@@ -56,6 +59,7 @@ class SegmentInfo:
 @dataclass
 class ClipValidationResult:
     """Validation results for a single clip"""
+
     clip: ClipInfo
     segments: list[SegmentInfo]
     missing_segments: list[Position]
@@ -73,6 +77,7 @@ class ClipValidationResult:
 @dataclass
 class ValidationResult:
     """Complete validation results for input directory"""
+
     system_issues: list[ValidationIssue]
     clip_results: dict[str, ClipValidationResult]
     total_size_estimate: int
@@ -207,7 +212,9 @@ class InputValidator:
 
         self.logger.debug(f"Validating clip: {clip.name}")
         self.logger.debug(
-            f"Clip boundaries: " f"start={clip.start_pos.to_string()}, " f"frames={clip.start_idx}-{clip.end_idx}"
+            f"Clip boundaries: "
+            f"start={clip.start_pos.to_string()}, "
+            f"frames={clip.start_idx}-{clip.end_idx}"
         )
 
         start_sec = int(clip.start_pos.second)
@@ -259,7 +266,8 @@ class InputValidator:
         else:
             coverage = (found_segments / total_positions) * 100
             self.logger.info(
-                f"Clip {clip.name}: Found {found_segments}/{total_positions} " f"segments ({coverage:.1f}% coverage)"
+                f"Clip {clip.name}: Found {found_segments}/{total_positions} "
+                f"segments ({coverage:.1f}% coverage)"
             )
             for segment in segments:
                 self.logger.debug(

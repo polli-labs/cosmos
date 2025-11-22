@@ -115,4 +115,3 @@ def test_find_manifest(tmp_path: Path) -> None:
     another_manifest.write_text(SAMPLE_MANIFEST)
     with pytest.raises(ValueError):
         find_manifest(tmp_path)
-

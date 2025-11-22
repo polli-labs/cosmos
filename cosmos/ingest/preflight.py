@@ -10,4 +10,3 @@ def preflight(input_dir: Path) -> None:
     ensure_ffmpeg_available()
     if not input_dir.exists():
         raise FileNotFoundError(input_dir)
-

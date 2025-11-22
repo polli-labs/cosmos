@@ -48,6 +48,7 @@ def pipeline(
         jobs: list[CropJob]
         if crop_config and crop_config.exists():
             from cosmos.crop.jobs import parse_jobs_json
+
             jobs = parse_jobs_json(crop_config)
         else:
             jobs = [CropJob()]

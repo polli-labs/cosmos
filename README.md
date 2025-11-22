@@ -26,6 +26,41 @@ squarecrop --help
 
 See docs/cosmos-cli.md and docs/squarecrop-cli.md for usage.
 
+## Local runs (uv + make)
+
+1) Create venv and install dev deps
+```
+make uv-sync
+```
+
+2) Run ingest (example)
+```
+make run.ingest IN=/path/to/raw OUT=./out YES=1 WINDOW=10
+```
+
+3) Run squarecrop with a jobs JSON
+```
+make run.crop INPUT=/path/to/clip.mp4 OUT=_work/out JOBS=_work/job.json YES=1
+```
+
+4) Inspect provenance
+```
+make run.provenance DIR=_work/out
+```
+
+Jobs JSON fields for squarecrop:
+- `targets`: [1536] or multiple sizes
+- Offsets (recommended): `offset_x`, `offset_y` in [-1,1], relative to available margin (0=center; +right/down; −left/up)
+- Alternative: `center_x`, `center_y` absolute [0..1] of full frame
+- Optional trims: `trim_unit: "time"`, `trim_start`, `trim_end`
+- All jobs/targets run for each input; outputs include job/size markers in filenames for traceability.
+- Provenance files now include width/height/duration/fps and stable clip/view ids usable by downstream tools.
+
+## IDs & provenance
+- Clip IDs: `clip-<stem>-<sha8>`; View IDs: `view-<stem>-<sha8>` (content-hash based, deterministic).
+- View provenance records offsets/centers, trim windows (seconds), target size, encoder used, and source clip id/sha.
+- Video metadata (width_px/height_px/fps/duration_sec) is recorded in both clip and view artifacts; width/height are aliases for backward compatibility.
+
 ## SDK quickstart
 
 ```python

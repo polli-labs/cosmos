@@ -29,7 +29,7 @@ def cmd_sha(path: Annotated[Path, typer.Argument(exists=True)]) -> None:
 def cmd_list(
     dir_path: Annotated[Path, typer.Argument(exists=True, file_okay=False)],
     kind: Annotated[str, typer.Option("--kind", help="clip|view|all")] = "all",
-    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON lines")]= False,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON lines")] = False,
 ) -> None:
     """List provenance artifacts under a directory."""
     items: list[dict[str, Any]] = []
@@ -54,31 +54,45 @@ def cmd_list(
 @app.command("clip-of")
 def cmd_clip_of(
     file_path: Annotated[Path, typer.Argument(exists=True, help="Output MP4 path from ingest")],
-    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON")]= False,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON")] = False,
 ) -> None:
     """Find the clip artifact JSON for an ingest-produced MP4 by hashing the file."""
     meta = find_clip_for_file(file_path)
     if not meta:
         raise typer.Exit(code=1)
-    typer.echo(json.dumps(meta, indent=2) if json_out else (meta.get("output", {}).get("path") or ""))
+    typer.echo(
+        json.dumps(meta, indent=2) if json_out else (meta.get("output", {}).get("path") or "")
+    )
 
 
 @app.command("view-of")
 def cmd_view_of(
     file_path: Annotated[Path, typer.Argument(exists=True, help="Output MP4 path from squarecrop")],
-    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON")]= False,
+    json_out: Annotated[bool, typer.Option("--json", help="Emit JSON")] = False,
 ) -> None:
     """Find the view artifact JSON for a squarecrop-produced MP4 by hashing the file."""
     meta = find_view_for_file(file_path)
     if not meta:
         raise typer.Exit(code=1)
-    typer.echo(json.dumps(meta, indent=2) if json_out else (meta.get("output", {}).get("path") or ""))
+    typer.echo(
+        json.dumps(meta, indent=2) if json_out else (meta.get("output", {}).get("path") or "")
+    )
 
 
 @app.command("views-for-clip")
 def cmd_views_for_clip(
-    clip_file: Annotated[Path, typer.Argument(exists=True, help="Ingest MP4 path (source for views)")],
-    search_dir: Annotated[list[Path] | None, typer.Option("--in", exists=True, file_okay=False, help="Directories to search for view artifacts (repeatable)")]= None,
+    clip_file: Annotated[
+        Path, typer.Argument(exists=True, help="Ingest MP4 path (source for views)")
+    ],
+    search_dir: Annotated[
+        list[Path] | None,
+        typer.Option(
+            "--in",
+            exists=True,
+            file_okay=False,
+            help="Directories to search for view artifacts (repeatable)",
+        ),
+    ] = None,
 ) -> None:
     """List crop view artifacts that reference the given clip's output sha (source.sha256)."""
     from cosmos.sdk.provenance import list_view_artifacts
@@ -97,14 +111,16 @@ def cmd_views_for_clip(
 
 
 @app.command("map")
-def cmd_map(dir_path: Annotated[Path, typer.Argument(exists=True, file_okay=False)],) -> None:
+def cmd_map(
+    dir_path: Annotated[Path, typer.Argument(exists=True, file_okay=False)],
+) -> None:
     """Emit mapping from output sha256 → artifact JSON path (clip + view)."""
     # Start from computed mapping and enrich with file paths when possible
     result: dict[str, dict[str, Any]] = map_artifacts_by_sha(dir_path).copy()
     for p in dir_path.glob("*.cosmos_*.v1.json"):
         try:
             obj = json.loads(p.read_text())
-            sha = ((obj.get("output") or {}).get("sha256"))
+            sha = (obj.get("output") or {}).get("sha256")
             if isinstance(sha, str):
                 obj["_path"] = str(p)
                 base = result.get(sha, {})

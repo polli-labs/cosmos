@@ -13,6 +13,7 @@ Command reference
 
 Developers
 - SDK overview and examples: sdk.md
+- Local runs with uv + make: see README (Local runs)
 
 Quick links
 - cosmos-cli quickstart: cosmos-cli.md

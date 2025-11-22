@@ -17,6 +17,9 @@ venv: ## Create virtualenv (uv)
 install: venv ## Install in editable mode with dev deps
 	$(ACT) && $(UV) pip install -e ".[dev]"
 
+.PHONY: uv-sync
+uv-sync: install ## Alias: create venv and install (uv)
+
 .PHONY: clean
 clean: ## Remove caches and build artifacts
 	rm -rf .pytest_cache .mypy_cache build dist *.egg-info
@@ -47,6 +50,33 @@ cosmos: ## Launch cosmos CLI
 .PHONY: squarecrop
 squarecrop: ## Launch squarecrop CLI
 	$(ACT) && squarecrop --help
+
+# ——— Local runs (parameterized) ———
+# Usage examples:
+#   make run.ingest IN=/path/raw OUT=/path/out YES=1 WINDOW=10
+#   make run.crop INPUT=/path/in.mp4 OUT=_work/out JOBS=_work/job.json YES=1
+
+.PHONY: run.ingest
+run.ingest: ## Run ingest: IN=/path INput dir, OUT=/path OUTput dir, optional YES=1, WINDOW=secs, CLIP=NAME (repeat via CLIPS="A B")
+	$(ACT) && python -m cosmos.cli.ingest_cli run \
+		$$([ -n "$(IN)" ] && echo --input-dir "$(IN)") \
+		$$([ -n "$(OUT)" ] && echo --output-dir "$(OUT)") \
+		$$([ -n "$(YES)" ] && echo --yes) \
+		$$([ -n "$(WINDOW)" ] && echo --window "$(WINDOW)") \
+		$$(for c in $(CLIPS); do echo --clip $$c; done)
+
+.PHONY: run.crop
+run.crop: ## Run squarecrop: INPUT=/path/in.mp4 OUT=/path/out JOBS=/path/jobs.json optional YES=1 DRY=1
+	$(ACT) && python -m cosmos.cli.crop_cli \
+		$$([ -n "$(INPUT)" ] && echo --input "$(INPUT)") \
+		$$([ -n "$(OUT)" ] && echo --out-dir "$(OUT)") \
+		$$([ -n "$(JOBS)" ] && echo --jobs-file "$(JOBS)") \
+		$$([ -n "$(YES)" ] && echo --yes) \
+		$$([ -n "$(DRY)" ] && echo --dry-run)
+
+.PHONY: run.provenance
+run.provenance: ## Map provenance in a dir: DIR=/path (prints sha256 -> artifact JSON)
+	$(ACT) && python -m cosmos.cli.provenance_cli map $$([ -n "$(DIR)" ] && echo "$(DIR)" || echo .)
 .PHONY: test-e2e-local
 test-e2e-local: ## Run local E2E tests (set COSMOS_ENABLE_LOCAL_TESTS=1)
 	$(ACT) && COSMOS_ENABLE_LOCAL_TESTS=1 pytest -q tests/e2e_local -q

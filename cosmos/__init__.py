@@ -6,4 +6,3 @@ Public SDK lives under `cosmos.sdk`.
 __all__ = [
     "sdk",
 ]
-

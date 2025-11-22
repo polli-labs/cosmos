@@ -8,4 +8,3 @@ class AppConfig:
     """Placeholder for future config loader/saver."""
 
     version: int = 1
-

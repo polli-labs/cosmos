@@ -17,7 +17,7 @@ def test_ladybird_ingest_dryrun(tmp_path: Path) -> None:
         pytest.skip("No input_dir present in cache or default path; ensure fixtures are downloaded")
     out_dir = tmp_path / "out"
     manifest = (cache / "LADYBIRD.xml") if (cache / "LADYBIRD.xml").exists() else None
-    opts = IngestOptions(dry_run=True, clips=["CLIP1","CLIP2"])  # limit to known-good clips
+    opts = IngestOptions(dry_run=True, clips=["CLIP1", "CLIP2"])  # limit to known-good clips
     outputs = ingest(input_dir, out_dir, manifest=manifest, options=opts)
     # dry-run should produce planned outputs and a report
     assert len(outputs) >= 1
