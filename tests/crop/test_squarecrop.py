@@ -49,8 +49,10 @@ def test_offset_bounds_expressions():
     assert "(1.0)" in flt_right
     iw = 200
     size = 100
+
     def margin_offset(offset: float) -> float:
         return (iw - size) / 2 + offset * (iw - size) / 2
+
     assert margin_offset(-1.0) == 0  # flush left
     assert margin_offset(1.0) == iw - size  # flush right
 
