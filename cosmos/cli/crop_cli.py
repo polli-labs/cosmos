@@ -74,8 +74,18 @@ def run(
             help="On macOS, try hevc_videotoolbox before H.264 hardware when available (useful for >4K inputs).",
         ),
     ] = False,
+    skip_ffmpeg_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ffmpeg-check",
+            help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
+        ),
+    ] = False,
 ) -> None:
     """Run square crop in interactive or agent (non-interactive) mode."""
+    from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
+
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and not non_interactive)
     videos: list[Path] = input_videos or []
     if not non_interactive and not videos:
         sel = questionary.text("Enter comma-separated MP4 paths:").ask() or ""
