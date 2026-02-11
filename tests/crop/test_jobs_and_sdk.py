@@ -1,8 +1,11 @@
+import shutil
 from pathlib import Path
 
 import pytest
 from cosmos.crop.jobs import parse_jobs_json
 from cosmos.sdk.crop import CropJob, crop
+
+ffmpeg_missing = shutil.which("ffmpeg") is None
 
 
 def test_parse_jobs_rejects_out_of_range_offset(tmp_path: Path) -> None:
@@ -13,6 +16,8 @@ def test_parse_jobs_rejects_out_of_range_offset(tmp_path: Path) -> None:
 
 
 def test_crop_runs_all_jobs_and_targets(tmp_path: Path) -> None:
+    if ffmpeg_missing:
+        pytest.skip("ffmpeg not available")
     video = tmp_path / "in.mp4"
     video.write_bytes(b"")  # dummy input
     jobs = [
@@ -38,8 +43,9 @@ def test_multi_input_multi_job_writes_all(tmp_path: Path, monkeypatch: pytest.Mo
 
     calls: list[str] = []
 
-    def fake_run_square_crop(_src, out, spec, dry_run=False):
+    def fake_run_square_crop(_src, out, spec, dry_run=False, prefer_hevc_hw=False):
         out.write_bytes(b"out")
+        assert prefer_hevc_hw is False
         calls.append(out.name)
         from cosmos.crop.squarecrop import CropRunResult
 
@@ -55,6 +61,32 @@ def test_multi_input_multi_job_writes_all(tmp_path: Path, monkeypatch: pytest.Mo
     outputs = crop(videos, jobs, out_dir, ffmpeg_opts={"dry_run": False})
     assert len(outputs) == 4
     assert sorted(calls) == sorted([p.name for p in outputs])
+
+
+def test_prefer_hevc_flag_passes_to_runner(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"x")
+    jobs = [CropJob(offset_x=0.0, size=128)]
+
+    seen_prefer_hevc: list[bool] = []
+
+    def fake_run_square_crop(_src, out, spec, dry_run=False, prefer_hevc_hw=False):
+        out.write_bytes(b"out")
+        seen_prefer_hevc.append(prefer_hevc_hw)
+        from cosmos.crop.squarecrop import CropRunResult
+
+        return CropRunResult(
+            args=["ffmpeg"], encoder_used="hevc_videotoolbox", encoder_attempted="hevc_videotoolbox"
+        )
+
+    import importlib
+
+    crop_mod = importlib.import_module("cosmos.sdk.crop")
+    monkeypatch.setattr(crop_mod, "run_square_crop", fake_run_square_crop)
+    out_dir = tmp_path / "out"
+    outputs = crop([video], jobs, out_dir, ffmpeg_opts={"dry_run": False, "prefer_hevc_hw": True})
+    assert len(outputs) == 1
+    assert seen_prefer_hevc == [True]
 
 
 def test_parse_jobs_rejects_centers_and_offsets(tmp_path: Path) -> None:

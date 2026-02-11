@@ -66,6 +66,6 @@ Agent flows (non-interactive)
 - Ingest: `make run.ingest IN=/path/to/raw OUT=/path/to/out YES=1` (add optional WINDOW/CLIPS).
 - Squarecrop: `make run.crop INPUT=clip.mp4 OUT=_work/out JOBS=job.json YES=1` or set `--offset-x/--offset-y --size` (offsets margin-relative [-1,1]; do not combine with centers).
 - Provenance mapping: `make run.provenance DIR=_work/out`.
-Example (Ladybird mirrored data): `squarecrop run --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`
+Example (Ladybird mirrored data): `squarecrop --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`
 
 Install (prod): `pip install polli-cosmos`

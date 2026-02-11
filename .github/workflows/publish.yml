@@ -56,6 +56,7 @@ jobs:
         run: hatch build -t wheel
       - name: Publish to TestPyPI
         if: startsWith(github.ref, 'refs/tags/v')
+        continue-on-error: true  # do not block PyPI publish if TestPyPI creds/env unavailable
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_KEY }}

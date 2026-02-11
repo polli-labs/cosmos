@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
@@ -11,6 +12,9 @@ from cosmos.ingest.processor import (
     VideoProcessor,
 )
 from cosmos.ingest.validation import ClipValidationResult, SegmentInfo
+
+if shutil.which("ffmpeg") is None:
+    pytest.skip("ffmpeg not available on PATH", allow_module_level=True)
 
 
 @pytest.fixture

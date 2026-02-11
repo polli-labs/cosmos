@@ -1,10 +1,15 @@
+import shutil
 from pathlib import Path
 
+import pytest
 from cosmos.sdk import CropJob, IngestOptions
 from cosmos.sdk import crop as crop_fn
 from cosmos.sdk import ingest as ingest_fn
 
+ffmpeg_missing = shutil.which("ffmpeg") is None
 
+
+@pytest.mark.skipif(ffmpeg_missing, reason="ffmpeg not available")
 def test_sdk_smoke(tmp_path: Path) -> None:
     # Create a fake input video path to satisfy placeholder logic
     src_dir = tmp_path / "in"

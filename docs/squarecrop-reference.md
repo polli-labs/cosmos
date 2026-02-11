@@ -1,7 +1,7 @@
 # Squarecrop CLI Reference
 
 Top-level command
-- `squarecrop run` — run interactive or non‑interactive square cropping.
+- `squarecrop` — run interactive or non‑interactive square cropping.
 
 Options
 - `--input PATH` — one or more MP4 files (repeatable).
@@ -9,19 +9,20 @@ Options
 - `--jobs-file PATH` — JSON jobs file (targets/offsets/trims).
 - `--dry-run` — do not execute ffmpeg; show planned commands.
 - `--yes` — non‑interactive.
+- `--prefer-hevc-hw` — macOS only: prefer `hevc_videotoolbox` when available.
 
 Examples
 - Simple interactive use:
 ```
-squarecrop run
+squarecrop
 ```
 - Non‑interactive with jobs file:
 ```
-squarecrop run --jobs-file /path/jobs.json --input clip.mp4 --out-dir ./out --yes
+squarecrop --jobs-file /path/jobs.json --input clip.mp4 --out-dir ./out --yes
 ```
 - Multiple inputs:
 ```
-squarecrop run --jobs-file /path/jobs.json --input a.mp4 --input b.mp4 --out-dir ./out --yes
+squarecrop --jobs-file /path/jobs.json --input a.mp4 --input b.mp4 --out-dir ./out --yes
 ```
 
 Jobs file fields
@@ -34,3 +35,4 @@ Jobs file fields
 Notes
 - Multiple jobs/targets are all applied per input; outputs are named with job and size markers for traceability.
 - Provenance: each output gets `.cosmos_view.v1.json` with crop offsets/centers, trim info, video width/height/duration/fps, and stable `view_id`.
+- Platform-specific encoder behavior and limitations are documented in `docs/encoder-behavior.md`.

@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from cosmos.ffmpeg.args import build_square_crop_args
-from cosmos.ffmpeg.detect import choose_encoder, ensure_ffmpeg_available
+from cosmos.ffmpeg.detect import (
+    choose_encoder_for_video,
+    ensure_ffmpeg_available,
+)
 
 
 @dataclass
@@ -63,11 +66,15 @@ def run_square_crop(
     output_path: Path,
     spec: SquareCropSpec,
     *,
+    prefer_hevc_hw: bool = False,
     dry_run: bool = False,
 ) -> CropRunResult:
     """Run or return ffmpeg args for a single square crop job."""
-    ensure_ffmpeg_available()
-    encoder = choose_encoder() if not dry_run else "libx264"
+    encoder, attempted = (
+        ("libx264", "libx264")
+        if dry_run
+        else choose_encoder_for_video(input_video, prefer_hevc_hw=prefer_hevc_hw)
+    )
     crop_filter = build_crop_filter(spec)
 
     def _build_args(enc: str) -> list[str]:
@@ -82,11 +89,13 @@ def run_square_crop(
 
     args = _build_args(encoder)
     if dry_run:
-        return CropRunResult(args=args, encoder_used=encoder, encoder_attempted=encoder)
+        return CropRunResult(args=args, encoder_used=encoder, encoder_attempted=attempted)
+
+    ensure_ffmpeg_available()
 
     try:
         subprocess.run(args, check=True, capture_output=True, text=True)  # noqa: S603
-        return CropRunResult(args=args, encoder_used=encoder, encoder_attempted=encoder)
+        return CropRunResult(args=args, encoder_used=encoder, encoder_attempted=attempted)
     except subprocess.CalledProcessError as exc:
         if encoder == "libx264":
             raise
@@ -95,4 +104,4 @@ def run_square_crop(
         )
         args = _build_args("libx264")
         subprocess.run(args, check=True, capture_output=True, text=True)  # noqa: S603
-        return CropRunResult(args=args, encoder_used="libx264", encoder_attempted=encoder)
+        return CropRunResult(args=args, encoder_used="libx264", encoder_attempted=attempted)
