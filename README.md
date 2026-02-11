@@ -92,8 +92,9 @@ produced = ingest(inputs, outputs, manifest=None, options=opts)
 
 ## Encoder policy (cross‑platform)
 
-- macOS: `h264_videotoolbox` > `libx264`
+- macOS: `h264_videotoolbox` > `libx264` (use `--prefer-hevc-hw` on large inputs to try `hevc_videotoolbox` first)
 - Linux: `h264_nvenc` > `h264_qsv` > `h264_vaapi` > `libx264`
 - Windows: `h264_nvenc` > `h264_qsv` > `h264_amf` > `libx264`
 
 Presets are centralized; filter graphs are CPU‑bound (crop/hstack/vstack/scale). Use `--scale-filter` and thread flags to tune throughput and memory.
+Detailed platform behavior and known limits are tracked in `docs/encoder-behavior.md`.

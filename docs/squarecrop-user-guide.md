@@ -6,7 +6,7 @@ This guide helps non‑technical users crop square videos from existing MP4s usi
 1) Install prerequisites (Python + FFmpeg) and Cosmos (see ingest-user-guide.md).
 2) Run the interactive crop tool:
 ```
-squarecrop run
+squarecrop
 ```
 3) Enter MP4 paths and choose an output folder when prompted.
 
@@ -28,15 +28,16 @@ Example `job_settings.json`:
 
 Run with a jobs file:
 ```
-squarecrop run --jobs-file /path/to/job_settings.json --input /path/to/clip.mp4 --out-dir ./crops --yes
+squarecrop --jobs-file /path/to/job_settings.json --input /path/to/clip.mp4 --out-dir ./crops --yes
 ```
 
 # Non-interactive flags (agent friendly)
-`squarecrop run --input clip.mp4 --out-dir _work/out --size 1080 --offset-x 0.2 --offset-y -0.1 --yes`
+`squarecrop --input clip.mp4 --out-dir _work/out --size 1080 --offset-x 0.2 --offset-y -0.1 --yes`
 
 - Add `--jobs-file job.json` for multiple jobs/targets.
 - `--dry-run` prints ffmpeg commands and touches outputs (no encoding).
 - Offsets take precedence over centers; offsets are margin-relative [-1,1].
+- On macOS 8K inputs, `--prefer-hevc-hw` can avoid expected H.264 VideoToolbox limits.
 
 Notes
 - `targets` are square sizes in pixels; all jobs/targets are applied to every input.
@@ -51,3 +52,4 @@ Notes
 ## Troubleshooting
 - Ensure input MP4s are readable (not DRM protected).
 - If speed is slow, try smaller targets or shorter trims.
+- For platform-specific encoder limits/fallback behavior, see `docs/encoder-behavior.md`.

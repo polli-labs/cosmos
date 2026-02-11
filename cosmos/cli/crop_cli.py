@@ -67,6 +67,13 @@ def run(
         float | None,
         typer.Option(help="Optional trim end in seconds (time-based)."),
     ] = None,
+    prefer_hevc_hw: Annotated[
+        bool,
+        typer.Option(
+            "--prefer-hevc-hw",
+            help="On macOS, try hevc_videotoolbox before H.264 hardware when available (useful for >4K inputs).",
+        ),
+    ] = False,
 ) -> None:
     """Run square crop in interactive or agent (non-interactive) mode."""
     videos: list[Path] = input_videos or []
@@ -96,7 +103,12 @@ def run(
                 end=trim_end,
             )
         ]
-    results = crop(videos, jobs, out_dir, ffmpeg_opts={"dry_run": dry_run})
+    results = crop(
+        videos,
+        jobs,
+        out_dir,
+        ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
+    )
     for p in results:
         typer.echo(str(p))
 

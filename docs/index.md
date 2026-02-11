@@ -14,6 +14,7 @@ Command reference
 Developers
 - SDK overview and examples: sdk.md
 - Local runs with uv + make: see README (Local runs)
+- Encoder behavior matrix and platform notes: encoder-behavior.md
 
 Quick links
 - cosmos-cli quickstart: cosmos-cli.md

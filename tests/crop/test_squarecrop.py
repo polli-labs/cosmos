@@ -4,7 +4,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from cosmos.crop.squarecrop import CropRunResult, SquareCropSpec, build_crop_filter, run_square_crop
+from cosmos.crop.squarecrop import (
+    CropRunResult,
+    SquareCropSpec,
+    build_crop_filter,
+    run_square_crop,
+)
 
 ffmpeg_missing = shutil.which("ffmpeg") is None
 
@@ -87,8 +92,37 @@ def test_hardware_fallback_to_software(tmp_path: Path, monkeypatch) -> None:
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr("cosmos.crop.squarecrop.subprocess.run", fake_run)
-    monkeypatch.setattr("cosmos.crop.squarecrop.choose_encoder", lambda: "h264_videotoolbox")
+    monkeypatch.setattr(
+        "cosmos.crop.squarecrop.choose_encoder_for_video",
+        lambda _p, prefer_hevc_hw=False: ("h264_videotoolbox", "h264_videotoolbox"),
+    )
     result = run_square_crop(inp, out, spec, dry_run=False)
     assert result.encoder_attempted == "h264_videotoolbox"
     assert result.encoder_used == "libx264"
     assert len(calls) == 2
+
+
+def test_prefer_hevc_passed_through(tmp_path: Path, monkeypatch) -> None:
+    if ffmpeg_missing:
+        pytest.skip("ffmpeg not available")
+    inp = tmp_path / "in.mp4"
+    inp.write_bytes(b"video")
+    out = tmp_path / "out.mp4"
+    spec = SquareCropSpec(size=128, center_x=0.5, center_y=0.5)
+
+    calls = []
+
+    def fake_run(cmd, check, capture_output, text):  # noqa: ANN001
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    def fake_choose(path, prefer_hevc_hw=False):
+        assert prefer_hevc_hw is True
+        return "hevc_videotoolbox", "hevc_videotoolbox"
+
+    monkeypatch.setattr("cosmos.crop.squarecrop.subprocess.run", fake_run)
+    monkeypatch.setattr("cosmos.crop.squarecrop.choose_encoder_for_video", fake_choose)
+    result = run_square_crop(inp, out, spec, dry_run=False, prefer_hevc_hw=True)
+    assert result.encoder_used == "hevc_videotoolbox"
+    assert result.encoder_attempted == "hevc_videotoolbox"
+    assert len(calls) == 1

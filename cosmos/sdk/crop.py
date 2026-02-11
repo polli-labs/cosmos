@@ -66,6 +66,7 @@ def crop(
     results: list[Path] = []
     jobs_to_run = jobs if jobs else [CropJob()]
     dry_run = bool((ffmpeg_opts or {}).get("dry_run", False))
+    prefer_hevc_hw = bool((ffmpeg_opts or {}).get("prefer_hevc_hw", False))
     for vi, src in enumerate(input_videos):
         for ji, job in enumerate(jobs_to_run):
             _validate_job(job)
@@ -81,7 +82,9 @@ def crop(
             _plan = plan_crops([src], spec)
             for ti, (_src, _flt) in enumerate(_plan):
                 out = out_dir / f"crop_{vi:03d}_job{ji:02d}_t{ti:02d}_s{spec.size}.mp4"
-                result = run_square_crop(src, out, spec, dry_run=dry_run)
+                result = run_square_crop(
+                    src, out, spec, dry_run=dry_run, prefer_hevc_hw=prefer_hevc_hw
+                )
                 if dry_run:
                     # Touch file to simulate output for tests or dry-run workflows
                     out.write_bytes(b"")

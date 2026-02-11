@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.3 — Encoder guardrails + HEVC preference (2026-02-11)
+- Add macOS encoder guardrail in `choose_encoder_for_video`: when H.264 VideoToolbox is selected for >4K inputs, proactively fall back to `libx264` with a clear runtime tip.
+- Add `--prefer-hevc-hw` for squarecrop (`squarecrop` and `cosmos crop run`) to prefer `hevc_videotoolbox` on macOS when available.
+- Preserve encoder provenance clarity by keeping attempted and used encoder values through CLI/SDK/run paths.
+- Expand test coverage for:
+  - macOS >4K VideoToolbox guardrail behavior
+  - HEVC preference selection
+  - SDK pass-through of `prefer_hevc_hw`
+- Docs refresh:
+  - fix stale `squarecrop run` examples to current `squarecrop` command shape
+  - add `docs/encoder-behavior.md` as the platform behavior matrix scaffold and link it from user/reference docs + README.
+
 ## 0.3.0 — Provenance + squarecrop offsets (2025-11-21)
 - Add JSON Schemas and SDK models for provenance: ingest_run.v1.json, clip.v1.json, crop_run.v1.json, view.v1.json.
 - Emit provenance on ingest (per-clip) and crop (per-view). Add `cosmos provenance` CLI for quick lookups.
