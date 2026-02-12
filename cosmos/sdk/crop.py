@@ -77,23 +77,23 @@ def crop(
     dry_run = bool((ffmpeg_opts or {}).get("dry_run", False))
     prefer_hevc_hw = bool((ffmpeg_opts or {}).get("prefer_hevc_hw", False))
 
-    # Detect rect mode from job types
-    is_rect = jobs and isinstance(jobs[0], RectCropJob)
-
-    if is_rect:
+    # Detect rect mode from job types and narrow for mypy
+    if jobs and isinstance(jobs[0], RectCropJob):
+        rect_jobs: list[RectCropJob] = [j for j in jobs if isinstance(j, RectCropJob)]
         return _crop_rect(
             input_videos,
-            jobs,
+            rect_jobs,
             out_dir,
             dry_run=dry_run,
-            prefer_hevc_hw=prefer_hevc_hw,  # type: ignore[arg-type]
+            prefer_hevc_hw=prefer_hevc_hw,
         )
+    square_jobs: list[CropJob] = [j for j in jobs if isinstance(j, CropJob)]
     return _crop_square(
         input_videos,
-        jobs,
+        square_jobs,
         out_dir,
         dry_run=dry_run,
-        prefer_hevc_hw=prefer_hevc_hw,  # type: ignore[arg-type]
+        prefer_hevc_hw=prefer_hevc_hw,
     )
 
 

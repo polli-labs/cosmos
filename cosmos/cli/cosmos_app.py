@@ -45,14 +45,13 @@ def pipeline(
     typer.echo(f"Ingest produced {len(videos)} files")
 
     if post_process:
-        jobs: list[CropJob]
         if crop_config and crop_config.exists():
             from cosmos.crop.jobs import parse_jobs_json
 
-            jobs = parse_jobs_json(crop_config)
+            parsed_jobs = parse_jobs_json(crop_config)
         else:
-            jobs = [CropJob()]
-        out = sdk_crop(videos, jobs, output_dir, ffmpeg_opts={"dry_run": dry_run})
+            parsed_jobs = [CropJob()]
+        out = sdk_crop(videos, parsed_jobs, output_dir, ffmpeg_opts={"dry_run": dry_run})
         typer.echo(f"Crop produced {len(out)} files")
 
 
