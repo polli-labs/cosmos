@@ -6,9 +6,9 @@ from typing import Annotated
 import questionary
 import typer
 
-from cosmos.sdk.crop import CropJob, crop
+from cosmos.sdk.crop import CropJob, RectCropJob, crop
 
-app = typer.Typer(help="Square crop post-processing")
+app = typer.Typer(help="Post-processing crop (square or rectangular)")
 
 
 @app.command()
@@ -29,9 +29,13 @@ def run(
     jobs_file: Annotated[
         Path | None,
         typer.Option(
-            "--jobs-file", exists=True, help="Squarecrop jobs JSON (offsets/targets/trims)"
+            "--jobs-file", exists=True, help="Crop jobs JSON (offsets/targets/trims)"
         ),
     ] = None,
+    crop_mode: Annotated[
+        str, typer.Option("--crop-mode", help="Crop mode: square (default) or rect")
+    ] = "square",
+    # Square mode params
     size: Annotated[
         int, typer.Option(help="Square target size (pixels) when not using --jobs-file")
     ] = 1080,
@@ -59,6 +63,28 @@ def run(
             help="Absolute center Y in [0,1] of full frame (use when offsets are not set)."
         ),
     ] = None,
+    # Rect mode params
+    x0: Annotated[
+        float | None,
+        typer.Option("--x0", help="Rect crop: left edge (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    y0: Annotated[
+        float | None,
+        typer.Option("--y0", help="Rect crop: top edge (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    width: Annotated[
+        float | None,
+        typer.Option("--width", help="Rect crop: width (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    height: Annotated[
+        float | None,
+        typer.Option("--height", help="Rect crop: height (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    px: Annotated[
+        bool,
+        typer.Option("--px", help="Interpret rect coords as pixels instead of normalized 0-1"),
+    ] = False,
+    # Shared params
     trim_start: Annotated[
         float | None,
         typer.Option(help="Optional trim start in seconds (time-based)."),
@@ -75,7 +101,7 @@ def run(
         ),
     ] = False,
 ) -> None:
-    """Run square crop in interactive or agent (non-interactive) mode."""
+    """Run crop in interactive or agent (non-interactive) mode."""
     videos: list[Path] = input_videos or []
     if not non_interactive and not videos:
         sel = questionary.text("Enter comma-separated MP4 paths:").ask() or ""
@@ -90,9 +116,21 @@ def run(
     if jobs_file:
         from cosmos.crop.jobs import parse_jobs_json
 
-        jobs = parse_jobs_json(jobs_file)
+        parsed_jobs = parse_jobs_json(jobs_file)
+    elif crop_mode == "rect":
+        parsed_jobs = [
+            RectCropJob(
+                x0=x0 or 0.0,
+                y0=y0 or 0.0,
+                w=width or 1.0,
+                h=height or 1.0,
+                normalized=not px,
+                start=trim_start,
+                end=trim_end,
+            )
+        ]
     else:
-        jobs = [
+        parsed_jobs = [
             CropJob(
                 center_x=center_x,
                 center_y=center_y,
@@ -105,12 +143,73 @@ def run(
         ]
     results = crop(
         videos,
-        jobs,
+        parsed_jobs,
         out_dir,
         ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
     )
     for p in results:
         typer.echo(str(p))
+
+
+@app.command(name="curated-views")
+def curated_views(
+    spec: Annotated[
+        Path, typer.Option("--spec", exists=True, help="Curated views spec JSON")
+    ],
+    source_root: Annotated[
+        Path, typer.Option("--source-root", exists=True, help="Root directory of source clips")
+    ],
+    out_dir: Annotated[
+        Path, typer.Option("--out", help="Output directory for cropped views")
+    ],
+    clip_pattern: Annotated[
+        str,
+        typer.Option("--clip-pattern", help="Pattern for source clips (default: {date}/8k/{clip}.mp4)"),
+    ] = "{date}/8k/{clip}.mp4",
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", help="Build commands; do not execute")
+    ] = False,
+    non_interactive: Annotated[
+        bool, typer.Option("--yes", help="Skip confirmation prompt")
+    ] = False,
+    prefer_hevc_hw: Annotated[
+        bool,
+        typer.Option("--prefer-hevc-hw", help="Try HEVC hardware encoder"),
+    ] = False,
+) -> None:
+    """Crop views from a curated-views-spec JSON."""
+    from cosmos.crop.curated_views import parse_curated_views
+
+    pairs = parse_curated_views(spec, source_root, clip_pattern=clip_pattern)
+
+    # Summary table
+    typer.echo(f"\n{'View ID':<40} {'Source':<30} {'Crop (norm)':<30}")
+    typer.echo("-" * 100)
+    for src, job in pairs:
+        crop_str = f"x0={job.x0:.3f} y0={job.y0:.3f} w={job.w:.3f} h={job.h:.3f}"
+        typer.echo(f"{job.view_id or '?':<40} {src.name:<30} {crop_str:<30}")
+    typer.echo(f"\nTotal: {len(pairs)} views")
+
+    if not non_interactive and not dry_run:
+        if not questionary.confirm("Proceed with crop?", default=True).ask():
+            raise typer.Abort()
+
+    # Group by source and crop each view
+    out_dir.mkdir(parents=True, exist_ok=True)
+    results: list[Path] = []
+    for src, job in pairs:
+        out_paths = crop(
+            [src],
+            [job],
+            out_dir,
+            ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
+        )
+        results.extend(out_paths)
+
+    action = "Would produce" if dry_run else "Produced"
+    typer.echo(f"\n{action} {len(results)} cropped views in {out_dir}")
+    for p in results:
+        typer.echo(f"  {p}")
 
 
 def main() -> None:
