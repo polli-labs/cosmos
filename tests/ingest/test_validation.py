@@ -36,6 +36,26 @@ def test_validate_system_ffmpeg_missing(
     assert any(i.level == ValidationLevel.ERROR and "FFmpeg" in i.message for i in issues)
 
 
+def test_validate_system_uses_resolved_ffmpeg_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, sample_manifest: Path
+) -> None:
+    parser = ManifestParser(sample_manifest)
+    v = InputValidator(tmp_path, tmp_path, parser)
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr("cosmos.ingest.validation.resolve_ffmpeg_path", lambda: "/custom/ffmpeg")
+
+    def fake_run(args: list[str], *_args, **_kwargs) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        return subprocess.CompletedProcess(args=args, returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    issues = v.validate_system()
+    assert not any(i.level == ValidationLevel.ERROR for i in issues)
+    assert calls
+    assert calls[0][0] == "/custom/ffmpeg"
+
+
 def test_load_segment_valid(tmp_path: Path, sample_manifest: Path) -> None:
     parser = ManifestParser(sample_manifest)
     v = InputValidator(tmp_path, tmp_path, parser)

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from cosmos.ffmpeg.detect import resolve_ffmpeg_path
 from cosmos.ffmpeg.presets import build_encoder_settings
 
 from .manifest import ClipInfo
@@ -94,7 +95,8 @@ class VideoProcessor:
         """
         available: list[EncoderType] = []
         try:
-            result = subprocess.run(["ffmpeg", "-encoders"], capture_output=True, text=True)
+            ffmpeg = resolve_ffmpeg_path()
+            result = subprocess.run([ffmpeg, "-encoders"], capture_output=True, text=True)
             text = (result.stdout or "").lower()
             preference = [
                 EncoderType.APPLE_VIDEOTOOLBOX,
@@ -170,7 +172,7 @@ class VideoProcessor:
 
             for encoder in self._available_encoders:
                 try:
-                    cmd = ["ffmpeg", "-y"]
+                    cmd = [resolve_ffmpeg_path(), "-y"]
                     # best-effort decode acceleration
                     if getattr(opt, "decode", None) and str(opt.decode).lower() == "hw":
                         try:

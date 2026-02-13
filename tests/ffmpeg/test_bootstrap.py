@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 
 def test_resolve_ffmpeg_path_env_override(monkeypatch):
@@ -59,19 +56,23 @@ def test_check_nvidia_available_linux_with_nvidia_smi(monkeypatch):
     import cosmos.ffmpeg.detect as detect_mod
 
     monkeypatch.setattr(detect_mod.platform, "system", lambda: "Linux")
-    monkeypatch.setattr(detect_mod.shutil, "which", lambda x: "/usr/bin/nvidia-smi" if x == "nvidia-smi" else None)
+    monkeypatch.setattr(
+        detect_mod.shutil, "which", lambda x: "/usr/bin/nvidia-smi" if x == "nvidia-smi" else None
+    )
     assert detect_mod.check_nvidia_available() is True
 
 
-def test_check_nvidia_available_linux_proc_driver(monkeypatch, tmp_path):
+def test_check_nvidia_available_linux_proc_driver(monkeypatch):
     """Detects NVIDIA GPU via /proc/driver/nvidia/version."""
     import cosmos.ffmpeg.detect as detect_mod
 
     monkeypatch.setattr(detect_mod.platform, "system", lambda: "Linux")
     monkeypatch.setattr(detect_mod.shutil, "which", lambda x: None)
-    nvidia_version = tmp_path / "version"
-    nvidia_version.touch()
-    monkeypatch.setattr(detect_mod, "check_nvidia_available", lambda: nvidia_version.exists())
+    monkeypatch.setattr(
+        detect_mod.Path,
+        "exists",
+        lambda p: p.as_posix() == "/proc/driver/nvidia/version",
+    )
     assert detect_mod.check_nvidia_available() is True
 
 
@@ -123,6 +124,7 @@ def test_prompt_bootstrap_warns_non_interactive(monkeypatch, caplog):
     monkeypatch.setattr(detect_mod.subprocess, "run", mock_run)
 
     import logging
+
     with caplog.at_level(logging.WARNING):
         detect_mod.prompt_bootstrap_if_needed(interactive=False)
 

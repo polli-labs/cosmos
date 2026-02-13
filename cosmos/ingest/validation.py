@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from cosmos.ffmpeg.detect import resolve_ffmpeg_path
+
 from .manifest import ClipInfo, ClipStatus, ManifestParser, Position
 
 
@@ -116,7 +118,7 @@ class InputValidator:
 
         # Check ffmpeg installation
         try:
-            ff = shutil.which("ffmpeg") or "ffmpeg"
+            ff = resolve_ffmpeg_path()
             subprocess.run([ff, "-version"], capture_output=True, check=True)  # noqa: S603,S607
         except subprocess.CalledProcessError:
             issues.append(
