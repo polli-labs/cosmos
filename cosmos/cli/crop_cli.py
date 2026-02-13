@@ -1,14 +1,154 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated, cast
+from typing import Annotated
 
 import questionary
 import typer
 
+from cosmos.cli.io import (
+    can_prompt,
+    emit_paths,
+    emit_payload,
+    info,
+    raise_mapped_exit,
+    resolve_output_mode,
+)
 from cosmos.sdk.crop import CropJob, RectCropJob, crop
 
 app = typer.Typer(help="Post-processing crop (square or rectangular)")
+CropJobs = list[CropJob] | list[RectCropJob]
+
+
+def _resolve_crop_mode(raw_mode: str) -> str:
+    mode = raw_mode.strip().lower()
+    if mode not in {"square", "rect"}:
+        raise typer.BadParameter("crop_mode must be one of: square, rect")
+    return mode
+
+
+def _resolve_io_paths(
+    *,
+    input_videos: list[Path] | None,
+    out_dir: Path | None,
+    prompt_allowed: bool,
+) -> tuple[list[Path], Path]:
+    videos: list[Path] = input_videos or []
+    if prompt_allowed and not videos:
+        sel = questionary.text("Enter comma-separated MP4 paths:").ask() or ""
+        videos = [Path(s.strip()) for s in sel.split(",") if s.strip()]
+    if prompt_allowed and out_dir is None:
+        selected = questionary.path("Select output directory:").ask() or "."
+        out_dir = Path(selected)
+    if out_dir is None:
+        raise typer.BadParameter(
+            "Output directory is required (set --yes/--no-input for non-interactive runs)."
+        )
+    return videos, out_dir
+
+
+def _jobs_from_rect_flags(
+    *,
+    x0: float | None,
+    y0: float | None,
+    width: float | None,
+    height: float | None,
+    px: bool,
+    trim_start: float | None,
+    trim_end: float | None,
+) -> list[RectCropJob]:
+    if x0 is None or y0 is None or width is None or height is None:
+        raise typer.BadParameter(
+            "--crop-mode rect requires --x0 --y0 --width --height when --jobs-file is not set"
+        )
+    return [
+        RectCropJob(
+            x0=x0,
+            y0=y0,
+            w=width,
+            h=height,
+            normalized=not px,
+            start=trim_start,
+            end=trim_end,
+        )
+    ]
+
+
+def _jobs_from_square_flags(
+    *,
+    size: int,
+    offset_x: float | None,
+    offset_y: float | None,
+    center_x: float | None,
+    center_y: float | None,
+    x0: float | None,
+    y0: float | None,
+    width: float | None,
+    height: float | None,
+    px: bool,
+    trim_start: float | None,
+    trim_end: float | None,
+) -> list[CropJob]:
+    if any(value is not None for value in (x0, y0, width, height)) or px:
+        raise typer.BadParameter("Rect options require --crop-mode rect")
+    return [
+        CropJob(
+            center_x=center_x,
+            center_y=center_y,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            size=size,
+            start=trim_start,
+            end=trim_end,
+        )
+    ]
+
+
+def _resolve_jobs(
+    *,
+    jobs_file: Path | None,
+    crop_mode: str,
+    size: int,
+    offset_x: float | None,
+    offset_y: float | None,
+    center_x: float | None,
+    center_y: float | None,
+    x0: float | None,
+    y0: float | None,
+    width: float | None,
+    height: float | None,
+    px: bool,
+    trim_start: float | None,
+    trim_end: float | None,
+) -> CropJobs:
+    if jobs_file:
+        from cosmos.crop.jobs import parse_jobs_json
+
+        return parse_jobs_json(jobs_file)
+    if crop_mode == "rect":
+        return _jobs_from_rect_flags(
+            x0=x0,
+            y0=y0,
+            width=width,
+            height=height,
+            px=px,
+            trim_start=trim_start,
+            trim_end=trim_end,
+        )
+    return _jobs_from_square_flags(
+        size=size,
+        offset_x=offset_x,
+        offset_y=offset_y,
+        center_x=center_x,
+        center_y=center_y,
+        x0=x0,
+        y0=y0,
+        width=width,
+        height=height,
+        px=px,
+        trim_start=trim_start,
+        trim_end=trim_end,
+    )
 
 
 @app.command()
@@ -21,7 +161,13 @@ def run(
         Path | None, typer.Option(dir_okay=True, help="Directory for outputs")
     ] = None,
     non_interactive: Annotated[
-        bool, typer.Option("--yes", "--no-tui", help="Skip interactive prompts (agent mode)")
+        bool,
+        typer.Option(
+            "--yes",
+            "--no-input",
+            "--no-tui",
+            help="Skip interactive prompts (agent mode)",
+        ),
     ] = False,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Build commands; do not execute")
@@ -105,71 +251,68 @@ def run(
             help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
         ),
     ] = False,
+    json_out: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable JSON to stdout")
+    ] = False,
+    plain_out: Annotated[
+        bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
+    ] = False,
 ) -> None:
     """Run crop in interactive or agent (non-interactive) mode."""
     from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
 
-    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and not non_interactive)
-    crop_mode = crop_mode.strip().lower()
-    if crop_mode not in {"square", "rect"}:
-        raise typer.BadParameter("crop_mode must be one of: square, rect")
-    videos: list[Path] = input_videos or []
-    if not non_interactive and not videos:
-        sel = questionary.text("Enter comma-separated MP4 paths:").ask() or ""
-        videos = [Path(s.strip()) for s in sel.split(",") if s.strip()]
-    if not non_interactive and out_dir is None:
-        selected = questionary.path("Select output directory:").ask() or "."
-        out_dir = Path(selected)
-    if out_dir is None:
-        raise typer.BadParameter("Output directory is required")
+    output_mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
+    prompt_allowed = can_prompt(no_input=non_interactive)
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and prompt_allowed)
+    normalized_mode = _resolve_crop_mode(crop_mode)
+    videos, resolved_out_dir = _resolve_io_paths(
+        input_videos=input_videos,
+        out_dir=out_dir,
+        prompt_allowed=prompt_allowed,
+    )
 
     # Default jobs or parse from file
-    if jobs_file:
-        from cosmos.crop.jobs import parse_jobs_json
+    try:
+        parsed_jobs = _resolve_jobs(
+            jobs_file=jobs_file,
+            crop_mode=normalized_mode,
+            size=size,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            center_x=center_x,
+            center_y=center_y,
+            x0=x0,
+            y0=y0,
+            width=width,
+            height=height,
+            px=px,
+            trim_start=trim_start,
+            trim_end=trim_end,
+        )
+        results = crop(
+            videos,
+            parsed_jobs,
+            resolved_out_dir,
+            ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise_mapped_exit(exc)
+        return
 
-        parsed_jobs = parse_jobs_json(jobs_file)
-    elif crop_mode == "rect":
-        if any(v is None for v in (x0, y0, width, height)):
-            raise typer.BadParameter(
-                "--crop-mode rect requires --x0 --y0 --width --height when --jobs-file is not set"
-            )
-        rect_x0 = cast(float, x0)
-        rect_y0 = cast(float, y0)
-        rect_w = cast(float, width)
-        rect_h = cast(float, height)
-        parsed_jobs = [
-            RectCropJob(
-                x0=rect_x0,
-                y0=rect_y0,
-                w=rect_w,
-                h=rect_h,
-                normalized=not px,
-                start=trim_start,
-                end=trim_end,
-            )
-        ]
-    else:
-        if any(v is not None for v in (x0, y0, width, height)) or px:
-            raise typer.BadParameter("Rect options require --crop-mode rect")
-        parsed_jobs = [
-            CropJob(
-                center_x=center_x,
-                center_y=center_y,
-                offset_x=offset_x,
-                offset_y=offset_y,
-                size=size,
-                start=trim_start,
-                end=trim_end,
-            )
-        ]
-    results = crop(
-        videos,
-        parsed_jobs,
-        out_dir,
-        ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
-    )
-    for p in results:
-        typer.echo(str(p))
+    if output_mode == "json":
+        emit_payload(
+            {
+                "command": "cosmos crop run",
+                "mode": normalized_mode,
+                "dry_run": dry_run,
+                "count": len(results),
+                "outputs": [str(p) for p in results],
+            },
+            mode=output_mode,
+        )
+        return
+
+    emit_paths(results, mode=output_mode)
 
 
 @app.command(name="curated-views")
@@ -189,7 +332,7 @@ def curated_views(
         bool, typer.Option("--dry-run", help="Build commands; do not execute")
     ] = False,
     non_interactive: Annotated[
-        bool, typer.Option("--yes", help="Skip confirmation prompt")
+        bool, typer.Option("--yes", "--no-input", help="Skip confirmation prompt")
     ] = False,
     prefer_hevc_hw: Annotated[
         bool,
@@ -202,43 +345,62 @@ def curated_views(
             help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
         ),
     ] = False,
+    json_out: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable JSON to stdout")
+    ] = False,
+    plain_out: Annotated[
+        bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
+    ] = False,
 ) -> None:
     """Crop views from a curated-views-spec JSON."""
     from cosmos.crop.curated_views import parse_curated_views
     from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
 
-    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and not non_interactive)
+    output_mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
+    prompt_allowed = can_prompt(no_input=non_interactive)
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and prompt_allowed)
 
-    pairs = parse_curated_views(spec, source_root, clip_pattern=clip_pattern)
+    try:
+        pairs = parse_curated_views(spec, source_root, clip_pattern=clip_pattern)
 
-    # Summary table
-    typer.echo(f"\n{'View ID':<40} {'Source':<30} {'Crop (norm)':<30}")
-    typer.echo("-" * 100)
-    for src, job in pairs:
-        crop_str = f"x0={job.x0:.3f} y0={job.y0:.3f} w={job.w:.3f} h={job.h:.3f}"
-        typer.echo(f"{job.view_id or '?':<40} {src.name:<30} {crop_str:<30}")
-    typer.echo(f"\nTotal: {len(pairs)} views")
+        if output_mode == "human":
+            info(f"{len(pairs)} curated views parsed from spec")
+            for src, job in pairs:
+                crop_str = f"x0={job.x0:.3f} y0={job.y0:.3f} w={job.w:.3f} h={job.h:.3f}"
+                info(f"{job.view_id or '?'} :: {src.name} :: {crop_str}")
 
-    if not non_interactive and not dry_run:
-        if not questionary.confirm("Proceed with crop?", default=True).ask():
-            raise typer.Abort()
+        if prompt_allowed and not dry_run:
+            if not questionary.confirm("Proceed with crop?", default=True).ask():
+                raise typer.Abort()
 
-    # Group by source and crop each view
-    out_dir.mkdir(parents=True, exist_ok=True)
-    results: list[Path] = []
-    for src, job in pairs:
-        out_paths = crop(
-            [src],
-            [job],
-            out_dir,
-            ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
+        # Group by source and crop each view
+        out_dir.mkdir(parents=True, exist_ok=True)
+        results: list[Path] = []
+        for src, job in pairs:
+            out_paths = crop(
+                [src],
+                [job],
+                out_dir,
+                ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
+            )
+            results.extend(out_paths)
+    except Exception as exc:  # noqa: BLE001
+        raise_mapped_exit(exc)
+        return
+
+    if output_mode == "json":
+        emit_payload(
+            {
+                "command": "cosmos crop curated-views",
+                "dry_run": dry_run,
+                "count": len(results),
+                "outputs": [str(p) for p in results],
+            },
+            mode=output_mode,
         )
-        results.extend(out_paths)
+        return
 
-    action = "Would produce" if dry_run else "Produced"
-    typer.echo(f"\n{action} {len(results)} cropped views in {out_dir}")
-    for p in results:
-        typer.echo(f"  {p}")
+    emit_paths(results, mode=output_mode)
 
 
 def main() -> None:
