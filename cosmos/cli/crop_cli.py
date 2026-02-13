@@ -113,7 +113,6 @@ def run(
     crop_mode = crop_mode.strip().lower()
     if crop_mode not in {"square", "rect"}:
         raise typer.BadParameter("crop_mode must be one of: square, rect")
-
     videos: list[Path] = input_videos or []
     if not non_interactive and not videos:
         sel = questionary.text("Enter comma-separated MP4 paths:").ask() or ""
