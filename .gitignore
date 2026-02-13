@@ -18,6 +18,8 @@ PROJECT_NARRATIVE.md
 *_export.txt
 _work/
 .venv_crop/
+.exports/
+.rlm/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

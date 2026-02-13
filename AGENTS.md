@@ -69,3 +69,10 @@ Agent flows (non-interactive)
 Example (Ladybird mirrored data): `squarecrop --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`
 
 Install (prod): `pip install polli-cosmos`
+
+Skill packaging and freshness (required)
+- Canonical in-repo Cosmos skill lives at `skills/cosmos/SKILL.md` with supporting refs in `skills/cosmos/references/`.
+- This skill must be reviewed and updated whenever feature work changes CLI, SDK, crop semantics, ffmpeg/bootstrap behavior, provenance fields/schemas, or output naming.
+- This review is also required for version bumps and release tag prep.
+- Follow the checklist in `skills/cosmos/references/maintenance-ritual.md` and leave receipts in the standing Linear maintenance issue.
+- Do not treat skill freshness as optional docs polish; it is a release-quality requirement for Cosmos.
