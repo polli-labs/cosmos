@@ -10,6 +10,7 @@ dev/fixtures/*.tar.zst
 PROJECT_NARRATIVE.md
 .claude/
 .agents/
+.rlm/
 .vscode/
 .cursor/
 .cursorignore
