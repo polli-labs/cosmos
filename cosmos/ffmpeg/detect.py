@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import logging
+import os
 import platform
 import shutil
 import subprocess
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 FFPROBE_DIM_CMD = [
     "-v",
@@ -18,9 +21,134 @@ FFPROBE_DIM_CMD = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# ffmpeg / ffprobe binary resolution
+# ---------------------------------------------------------------------------
+
+
+def resolve_ffmpeg_path() -> str:
+    """Resolve the ffmpeg binary using the cosmos lookup order.
+
+    1. ``COSMOS_FFMPEG`` env var (explicit override)
+    2. ``~/.local/share/cosmos/bin/ffmpeg`` (cosmos-managed install)
+    3. System PATH (``shutil.which("ffmpeg")``)
+    """
+    env = os.environ.get("COSMOS_FFMPEG")
+    if env:
+        return env
+
+    from cosmos.ffmpeg.bootstrap import cosmos_managed_ffmpeg
+
+    managed = cosmos_managed_ffmpeg()
+    if managed is not None:
+        return str(managed)
+
+    return shutil.which("ffmpeg") or "ffmpeg"
+
+
+def resolve_ffprobe_path() -> str:
+    """Resolve the ffprobe binary using the same lookup order as ffmpeg."""
+    env = os.environ.get("COSMOS_FFPROBE")
+    if env:
+        return env
+
+    from cosmos.ffmpeg.bootstrap import cosmos_managed_ffprobe
+
+    managed = cosmos_managed_ffprobe()
+    if managed is not None:
+        return str(managed)
+
+    return shutil.which("ffprobe") or "ffprobe"
+
+
 def ensure_ffmpeg_available() -> None:
-    if shutil.which("ffmpeg") is None:
-        raise RuntimeError("ffmpeg not found in PATH")
+    """Raise if no ffmpeg can be found via the standard lookup order."""
+    ff = resolve_ffmpeg_path()
+    if ff == "ffmpeg" and shutil.which("ffmpeg") is None:
+        hint = ""
+        if platform.system().lower() == "darwin":
+            hint = " Tip: brew install ffmpeg"
+        raise RuntimeError(f"ffmpeg not found in PATH.{hint}")
+
+
+# ---------------------------------------------------------------------------
+# NVIDIA detection + bootstrap prompt
+# ---------------------------------------------------------------------------
+
+
+def check_nvidia_available() -> bool:
+    """Return True if NVIDIA GPU drivers are present on a Linux system."""
+    if platform.system().lower() != "linux":
+        return False
+    if shutil.which("nvidia-smi") is not None:
+        return True
+    return Path("/proc/driver/nvidia/version").exists()
+
+
+def prompt_bootstrap_if_needed(*, interactive: bool = True) -> None:
+    """Detect missing NVENC support on Linux+NVIDIA and offer to bootstrap.
+
+    Does nothing on macOS/Windows, when no NVIDIA GPU is detected, or when
+    the resolved ffmpeg already supports h264_nvenc.
+    """
+    if platform.system().lower() != "linux":
+        return
+    if not check_nvidia_available():
+        return
+
+    ff = resolve_ffmpeg_path()
+    try:
+        out = subprocess.run(  # noqa: S603
+            [ff, "-hide_banner", "-encoders"],
+            capture_output=True,
+            text=True,
+        )
+        text = ((out.stdout or "") + (out.stderr or "")).lower()
+    except Exception:
+        return
+
+    if "h264_nvenc" in text:
+        return
+
+    # NVIDIA present but ffmpeg lacks NVENC
+    logger.warning(
+        "NVIDIA GPU detected but your ffmpeg (%s) does not support "
+        "hardware encoding (h264_nvenc). Software encoding will be "
+        "significantly slower.",
+        ff,
+    )
+
+    if not interactive:
+        logger.info(
+            "Run without --skip-ffmpeg-check to interactively install "
+            "an NVENC-capable ffmpeg build."
+        )
+        return
+
+    try:
+        import questionary
+
+        proceed = questionary.confirm(
+            "Download and install an NVENC-enabled ffmpeg build? "
+            "This is a ~135 MB download from github.com/BtbN/FFmpeg-Builds.",
+            default=True,
+        ).ask()
+    except (ImportError, EOFError, KeyboardInterrupt):
+        proceed = False
+
+    if not proceed:
+        logger.info("Skipping ffmpeg bootstrap. Continuing with software encoding.")
+        return
+
+    from cosmos.ffmpeg.bootstrap import download_btbn_ffmpeg
+
+    download_btbn_ffmpeg()
+    logger.info("Bootstrap complete. NVENC-capable ffmpeg is now available.")
+
+
+# ---------------------------------------------------------------------------
+# Encoder selection
+# ---------------------------------------------------------------------------
 
 
 def choose_encoder() -> str:
@@ -32,7 +160,7 @@ def choose_encoder() -> str:
     """
     ensure_ffmpeg_available()
     try:
-        ff = shutil.which("ffmpeg") or "ffmpeg"
+        ff = resolve_ffmpeg_path()
         out = subprocess.run([ff, "-hide_banner", "-encoders"], capture_output=True, text=True)  # noqa: S603
         stdout = out.stdout if isinstance(getattr(out, "stdout", None), str) else ""
         stderr = out.stderr if isinstance(getattr(out, "stderr", None), str) else ""
@@ -57,7 +185,7 @@ def choose_encoder() -> str:
 
 def _probe_dimensions(input_path: Path) -> tuple[int | None, int | None]:
     """Return (width, height) using ffprobe; tolerate failures."""
-    ffprobe = shutil.which("ffprobe") or "ffprobe"
+    ffprobe = resolve_ffprobe_path()
     try:
         out = subprocess.run(  # noqa: S603
             [ffprobe, *FFPROBE_DIM_CMD, str(input_path)],
@@ -86,7 +214,7 @@ def _is_over_videotoolbox_h264_limit(width: int | None, height: int | None) -> b
 
 
 def _hevc_supported() -> bool:
-    ff = shutil.which("ffmpeg") or "ffmpeg"
+    ff = resolve_ffmpeg_path()
     try:
         out = subprocess.run([ff, "-hide_banner", "-encoders"], capture_output=True, text=True)  # noqa: S603
         text = (out.stdout or "") + (out.stderr or "")

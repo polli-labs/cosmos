@@ -80,7 +80,10 @@ class TestVideoProcessor:
          V..... h264_nvenc     NVIDIA NVENC H.264 encoder
         """
 
-        with patch("subprocess.run") as mock_run:
+        with (
+            patch("cosmos.ingest.processor.resolve_ffmpeg_path", return_value="/custom/ffmpeg"),
+            patch("subprocess.run") as mock_run,
+        ):
             mock_run.return_value.stdout = ffmpeg_output
             mock_run.return_value.returncode = 0
             encoders = processor._detect_encoders()
@@ -89,6 +92,7 @@ class TestVideoProcessor:
             assert encoders.index(EncoderType.NVIDIA_NVENC) < encoders.index(
                 EncoderType.SOFTWARE_X264
             )
+            assert mock_run.call_args[0][0][0] == "/custom/ffmpeg"
 
     def test_encoder_detection_fallback(self, processor: VideoProcessor) -> None:
         with patch("subprocess.run") as mock_run:
@@ -154,7 +158,8 @@ class TestVideoProcessor:
         self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult
     ) -> None:  # type: ignore[no-untyped-def]
         mock_run.return_value.returncode = 0
-        result = processor.process_clip(mock_validation_result)
+        with patch("cosmos.ingest.processor.resolve_ffmpeg_path", return_value="/custom/ffmpeg"):
+            result = processor.process_clip(mock_validation_result)
         assert result.success
         assert result.frames_processed > 0
         assert (
@@ -163,7 +168,7 @@ class TestVideoProcessor:
         )
         assert mock_run.called
         cmd_args = mock_run.call_args[0][0]
-        assert "ffmpeg" in cmd_args
+        assert cmd_args[0] == "/custom/ffmpeg"
         assert "-filter_complex" in cmd_args
 
     @patch("subprocess.run")

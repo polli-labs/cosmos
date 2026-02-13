@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from cosmos.ffmpeg.detect import resolve_ffmpeg_path
+
 
 def build_concat_encode_args(segments: list[Path], output: Path, *, encoder: str) -> list[str]:
     """Return a minimal ffmpeg command for concat and encode.
@@ -13,7 +15,7 @@ def build_concat_encode_args(segments: list[Path], output: Path, *, encoder: str
     if first is None:
         raise ValueError("No input segments provided")
     return [
-        "ffmpeg",
+        resolve_ffmpeg_path(),
         "-y",
         "-i",
         str(first),
@@ -35,7 +37,7 @@ def build_square_crop_args(
     end: float | None = None,
 ) -> list[str]:
     args: list[str] = [
-        "ffmpeg",
+        resolve_ffmpeg_path(),
         "-y",
     ]
     if start is not None:

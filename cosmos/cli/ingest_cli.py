@@ -38,8 +38,18 @@ def run(
     window_seconds: Annotated[
         float | None, typer.Option("--window", help="Process only first N seconds")
     ] = None,
+    skip_ffmpeg_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ffmpeg-check",
+            help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
+        ),
+    ] = False,
 ) -> None:
     """Run interactive or non-interactive ingest."""
+    from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
+
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and not non_interactive)
     if not non_interactive:
         if input_dir is None:
             selected = questionary.path("Select input directory:").ask() or "."
