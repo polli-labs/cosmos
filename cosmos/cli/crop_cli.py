@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import questionary
 import typer
@@ -28,9 +28,7 @@ def run(
     ] = False,
     jobs_file: Annotated[
         Path | None,
-        typer.Option(
-            "--jobs-file", exists=True, help="Crop jobs JSON (offsets/targets/trims)"
-        ),
+        typer.Option("--jobs-file", exists=True, help="Crop jobs JSON (offsets/targets/trims)"),
     ] = None,
     crop_mode: Annotated[
         str, typer.Option("--crop-mode", help="Crop mode: square (default) or rect")
@@ -100,8 +98,22 @@ def run(
             help="On macOS, try hevc_videotoolbox before H.264 hardware when available (useful for >4K inputs).",
         ),
     ] = False,
+    skip_ffmpeg_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ffmpeg-check",
+            help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
+        ),
+    ] = False,
 ) -> None:
     """Run crop in interactive or agent (non-interactive) mode."""
+    from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
+
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and not non_interactive)
+    crop_mode = crop_mode.strip().lower()
+    if crop_mode not in {"square", "rect"}:
+        raise typer.BadParameter("crop_mode must be one of: square, rect")
+
     videos: list[Path] = input_videos or []
     if not non_interactive and not videos:
         sel = questionary.text("Enter comma-separated MP4 paths:").ask() or ""
@@ -118,18 +130,28 @@ def run(
 
         parsed_jobs = parse_jobs_json(jobs_file)
     elif crop_mode == "rect":
+        if any(v is None for v in (x0, y0, width, height)):
+            raise typer.BadParameter(
+                "--crop-mode rect requires --x0 --y0 --width --height when --jobs-file is not set"
+            )
+        rect_x0 = cast(float, x0)
+        rect_y0 = cast(float, y0)
+        rect_w = cast(float, width)
+        rect_h = cast(float, height)
         parsed_jobs = [
             RectCropJob(
-                x0=x0 or 0.0,
-                y0=y0 or 0.0,
-                w=width or 1.0,
-                h=height or 1.0,
+                x0=rect_x0,
+                y0=rect_y0,
+                w=rect_w,
+                h=rect_h,
                 normalized=not px,
                 start=trim_start,
                 end=trim_end,
             )
         ]
     else:
+        if any(v is not None for v in (x0, y0, width, height)) or px:
+            raise typer.BadParameter("Rect options require --crop-mode rect")
         parsed_jobs = [
             CropJob(
                 center_x=center_x,
@@ -153,18 +175,16 @@ def run(
 
 @app.command(name="curated-views")
 def curated_views(
-    spec: Annotated[
-        Path, typer.Option("--spec", exists=True, help="Curated views spec JSON")
-    ],
+    spec: Annotated[Path, typer.Option("--spec", exists=True, help="Curated views spec JSON")],
     source_root: Annotated[
         Path, typer.Option("--source-root", exists=True, help="Root directory of source clips")
     ],
-    out_dir: Annotated[
-        Path, typer.Option("--out", help="Output directory for cropped views")
-    ],
+    out_dir: Annotated[Path, typer.Option("--out", help="Output directory for cropped views")],
     clip_pattern: Annotated[
         str,
-        typer.Option("--clip-pattern", help="Pattern for source clips (default: {date}/8k/{clip}.mp4)"),
+        typer.Option(
+            "--clip-pattern", help="Pattern for source clips (default: {date}/8k/{clip}.mp4)"
+        ),
     ] = "{date}/8k/{clip}.mp4",
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Build commands; do not execute")
@@ -176,9 +196,19 @@ def curated_views(
         bool,
         typer.Option("--prefer-hevc-hw", help="Try HEVC hardware encoder"),
     ] = False,
+    skip_ffmpeg_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ffmpeg-check",
+            help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
+        ),
+    ] = False,
 ) -> None:
     """Crop views from a curated-views-spec JSON."""
     from cosmos.crop.curated_views import parse_curated_views
+    from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
+
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and not non_interactive)
 
     pairs = parse_curated_views(spec, source_root, clip_pattern=clip_pattern)
 

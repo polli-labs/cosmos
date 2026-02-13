@@ -48,9 +48,11 @@ def _parse_rect_crop(obj: dict[str, Any]) -> tuple[float, float, float, float, b
 
     Returns (x0, y0, w, h, normalized).
     """
+    if "crop_norm" in obj and "crop_px" in obj:
+        raise ValueError("Provide exactly one of crop_norm or crop_px")
     if "crop_norm" in obj:
         cn = obj["crop_norm"]
-        if isinstance(cn, (list, tuple)):
+        if isinstance(cn, list | tuple):
             x0, y0, w, h = (float(v) for v in cn)
         elif isinstance(cn, dict):
             x0 = float(cn["x0"])
@@ -62,7 +64,7 @@ def _parse_rect_crop(obj: dict[str, Any]) -> tuple[float, float, float, float, b
         return x0, y0, w, h, True
     if "crop_px" in obj:
         cp = obj["crop_px"]
-        if isinstance(cp, (list, tuple)):
+        if isinstance(cp, list | tuple):
             x0, y0, w, h = (int(v) for v in cp)
         elif isinstance(cp, dict):
             x0 = int(cp["x0"])
@@ -84,6 +86,13 @@ def _validate_rect_norm(x0: float, y0: float, w: float, h: float) -> None:
         raise ValueError(f"x0 + w exceeds 1.0 ({x0} + {w} = {x0 + w})")
     if y0 + h > 1.0 + 1e-9:
         raise ValueError(f"y0 + h exceeds 1.0 ({y0} + {h} = {y0 + h})")
+
+
+def _validate_rect_px(x0: float, y0: float, w: float, h: float) -> None:
+    """Validate that pixel rect coords are non-negative."""
+    for name, val in [("x0", x0), ("y0", y0), ("w", w), ("h", h)]:
+        if val < 0:
+            raise ValueError(f"rect coord {name} must be non-negative (got {val})")
 
 
 def parse_jobs_json(path: Path) -> list[CropJob] | list[RectCropJob]:
@@ -115,6 +124,8 @@ def _parse_rect_jobs(objs: list[dict[str, Any]]) -> list[RectCropJob]:
         x0, y0, w, h, normalized = _parse_rect_crop(obj)
         if normalized:
             _validate_rect_norm(x0, y0, w, h)
+        else:
+            _validate_rect_px(x0, y0, w, h)
         start_f, end_f = _parse_trim(obj)
         view_id = obj.get("view_id") or obj.get("id")
         annotations = obj.get("annotations", {})

@@ -10,6 +10,7 @@ from cosmos.ffmpeg.detect import (
     _probe_dimensions,
     choose_encoder_for_video,
     ensure_ffmpeg_available,
+    resolve_ffmpeg_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -83,7 +84,7 @@ def _build_rect_crop_args(
     end: float | None = None,
 ) -> list[str]:
     """Build ffmpeg args for a rectangular crop — mirrors build_square_crop_args."""
-    args: list[str] = ["ffmpeg", "-y"]
+    args: list[str] = [resolve_ffmpeg_path(), "-y"]
     if start is not None:
         args += ["-ss", f"{start}"]
     args += ["-i", str(input_path)]

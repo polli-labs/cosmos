@@ -104,6 +104,41 @@ def test_parse_rect_job_missing_crop(tmp_path: Path) -> None:
         parse_jobs_json(jobs_file)
 
 
+def test_parse_rect_job_both_crop_formats_raises(tmp_path: Path) -> None:
+    """Providing both crop_norm and crop_px should raise ValueError."""
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text(
+        json.dumps(
+            [
+                {
+                    "crop_mode": "rect",
+                    "crop_norm": {"x0": 0.0, "y0": 0.0, "w": 0.5, "h": 0.5},
+                    "crop_px": {"x0": 0, "y0": 0, "w": 640, "h": 480},
+                }
+            ]
+        )
+    )
+    with pytest.raises(ValueError, match="exactly one of crop_norm or crop_px"):
+        parse_jobs_json(jobs_file)
+
+
+def test_parse_rect_job_pixel_negative_coord_raises(tmp_path: Path) -> None:
+    """Negative pixel coordinates should raise ValueError."""
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text(
+        json.dumps(
+            [
+                {
+                    "crop_mode": "rect",
+                    "crop_px": {"x0": -1, "y0": 0, "w": 640, "h": 480},
+                }
+            ]
+        )
+    )
+    with pytest.raises(ValueError, match="non-negative"):
+        parse_jobs_json(jobs_file)
+
+
 def test_parse_rect_job_with_trim(tmp_path: Path) -> None:
     """Trim values are parsed correctly for rect jobs."""
     jobs_file = tmp_path / "jobs.json"
