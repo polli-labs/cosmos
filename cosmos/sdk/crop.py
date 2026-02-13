@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from cosmos.crop.rectcrop import RectCropSpec, build_rect_crop_filter, run_rect_crop
 from cosmos.crop.squarecrop import SquareCropSpec, plan_crops, run_square_crop
@@ -58,6 +58,16 @@ def _validate_job(job: CropJob) -> None:
 
 
 def _validate_rect_job(job: RectCropJob) -> None:
+    if job.w <= 0 or job.h <= 0:
+        raise ValueError("Invalid rect crop: width and height must be > 0.")
+    for name, val in [("x0", job.x0), ("y0", job.y0), ("w", job.w), ("h", job.h)]:
+        if val < 0:
+            raise ValueError(f"Invalid rect crop: {name} must be non-negative (got {val}).")
+    if job.normalized:
+        if job.x0 + job.w > 1.0 + 1e-9:
+            raise ValueError("Invalid rect crop: x0 + w must be <= 1.0 in normalized mode.")
+        if job.y0 + job.h > 1.0 + 1e-9:
+            raise ValueError("Invalid rect crop: y0 + h must be <= 1.0 in normalized mode.")
     if job.start is not None and job.end is not None and job.end <= job.start:
         raise ValueError("Invalid trim window: trim_end must be greater than trim_start.")
 
@@ -77,9 +87,18 @@ def crop(
     dry_run = bool((ffmpeg_opts or {}).get("dry_run", False))
     prefer_hevc_hw = bool((ffmpeg_opts or {}).get("prefer_hevc_hw", False))
 
-    # Detect rect mode from job types and narrow for mypy
-    if jobs and isinstance(jobs[0], RectCropJob):
-        rect_jobs: list[RectCropJob] = [j for j in jobs if isinstance(j, RectCropJob)]
+    if not jobs:
+        return _crop_square(
+            input_videos,
+            [],
+            out_dir,
+            dry_run=dry_run,
+            prefer_hevc_hw=prefer_hevc_hw,
+        )
+
+    # Detect crop mode from job types and enforce homogeneous lists.
+    if all(isinstance(j, RectCropJob) for j in jobs):
+        rect_jobs = [cast(RectCropJob, j) for j in jobs]
         return _crop_rect(
             input_videos,
             rect_jobs,
@@ -87,14 +106,18 @@ def crop(
             dry_run=dry_run,
             prefer_hevc_hw=prefer_hevc_hw,
         )
-    square_jobs: list[CropJob] = [j for j in jobs if isinstance(j, CropJob)]
-    return _crop_square(
-        input_videos,
-        square_jobs,
-        out_dir,
-        dry_run=dry_run,
-        prefer_hevc_hw=prefer_hevc_hw,
-    )
+
+    if all(isinstance(j, CropJob) for j in jobs):
+        square_jobs = [cast(CropJob, j) for j in jobs]
+        return _crop_square(
+            input_videos,
+            square_jobs,
+            out_dir,
+            dry_run=dry_run,
+            prefer_hevc_hw=prefer_hevc_hw,
+        )
+
+    raise ValueError("Jobs must be all CropJob or all RectCropJob.")
 
 
 def _crop_rect(
