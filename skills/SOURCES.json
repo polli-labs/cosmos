@@ -1,0 +1,14 @@
+{
+  "version": "2026-02-13",
+  "generated_at": "2026-02-13T00:00:00Z",
+  "skills": [
+    {
+      "id": "cosmos",
+      "source": {
+        "type": "internal",
+        "repo": "cosmos",
+        "path": "skills/cosmos/SKILL.md"
+      }
+    }
+  ]
+}
