@@ -68,11 +68,15 @@ def fail(message: str, *, code: ExitCode) -> None:
 def raise_mapped_exit(exc: Exception) -> None:
     if isinstance(exc, FileNotFoundError | ValueError):
         fail(str(exc), code=ExitCode.INPUT_VALIDATION_ERROR)
+        return
     if isinstance(exc, RuntimeError):
         text = str(exc).lower()
         if "ffmpeg" in text or "ffprobe" in text or "encoder" in text:
             fail(str(exc), code=ExitCode.FFMPEG_PRECHECK_ERROR)
+            return
         fail(str(exc), code=ExitCode.PROCESSING_ERROR)
+        return
     if isinstance(exc, subprocess.CalledProcessError):
         fail(str(exc), code=ExitCode.PROCESSING_ERROR)
+        return
     fail(str(exc), code=ExitCode.PROCESSING_ERROR)
