@@ -4,9 +4,9 @@ Quick start
 
 ```
 cosmos --help
+cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
-cosmos pipeline --help
 ```
 
 Notes
@@ -21,3 +21,13 @@ Manifest discovery and validation
 
 Dry runs
 - Add `--dry-run` to `cosmos ingest run` or `cosmos pipeline` to build commands without executing FFmpeg. Outputs are simulated so downstream steps can proceed.
+
+Output modes
+- Commands that produce result lists now support:
+  - `--json`: structured machine output to `stdout`
+  - `--plain`: stable line-based output to `stdout`
+- Diagnostics, warnings, and deprecation notices are written to `stderr`.
+
+Process command
+- `cosmos process` is the canonical ingest -> optional crop workflow command.
+- `cosmos pipeline` remains as a deprecated compatibility alias.

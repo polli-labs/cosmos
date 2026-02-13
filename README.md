@@ -21,6 +21,7 @@ Two CLIs, one SDK. TUI‑first UX with a stable programmatic API.
 
 ```
 cosmos --help
+cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
 squarecrop --help
