@@ -89,6 +89,10 @@ e2e-repro-slim: ## Run slim ingest reproduction (4K, 10s, balanced) local E2E
 e2e-repro-full: ## Run full 9.5k reproduction (very heavy) local E2E
 	$(ACT) && COSMOS_ENABLE_LOCAL_TESTS=1 COSMOS_FULL_REPRO=1 pytest -q tests/e2e_local/test_ladybird_repro_full.py -q
 
+.PHONY: e2e-repro-8k
+e2e-repro-8k: ## Run 8K windowed reproduction (local-only; disabled in CI by default)
+	$(ACT) && COSMOS_ENABLE_LOCAL_TESTS=1 COSMOS_RUN_8K_REPRO=1 pytest -q tests/e2e_local/test_ladybird_repro_8k.py -q
+
 .PHONY: e2e-heavy
 e2e-heavy: e2e-repro-slim ## Back-compat alias for slim reproduction
 

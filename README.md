@@ -81,6 +81,10 @@ produced = ingest(inputs, outputs, manifest=None, options=opts)
 - Run all local tests: `pytest -q tests/e2e_local`
 - Slim ingest reproduction (default): `make e2e-repro-slim`
   - 4K balanced, 10s window, bicubic scaler; writes `{clip}.cmd.txt` and `{clip}.log.txt` alongside outputs.
+- 8K windowed reproduction (heavy, local-only): `make e2e-repro-8k` (uses `COSMOS_RUN_8K_REPRO=1`)
+  - defaults: `CLIP1`, 2s window, 7680x4320 output
+  - optional knobs: `COSMOS_8K_CLIPS`, `COSMOS_8K_WINDOW_SECONDS`, `COSMOS_8K_QUALITY_MODE`, `COSMOS_8K_SCALE_FILTER`
+  - CI boundary: skipped when `CI=1` unless `COSMOS_RUN_8K_IN_CI=1`
 - Full 9.5k reproduction (very heavy): `make e2e-repro-full` (uses `COSMOS_FULL_REPRO=1`).
 - Fixtures live under `/Users/.../ladybird` or `dev/fixtures/cache` (see dev/fixtures/README.md). CI skips these.
 
