@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 from cosmos.crop.jobs import parse_jobs_json
-from cosmos.sdk.crop import CropJob, crop
+from cosmos.sdk.crop import CropJob, RectCropJob, crop
 
 ffmpeg_missing = shutil.which("ffmpeg") is None
 
@@ -104,6 +104,32 @@ def test_trim_window_validation(tmp_path: Path) -> None:
         crop(
             [video],
             [CropJob(offset_x=0.0, size=128, start=5.0, end=2.0)],
+            out_dir,
+            ffmpeg_opts={"dry_run": True},
+        )
+
+
+def test_crop_rejects_mixed_job_types(tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"data")
+    out_dir = tmp_path / "out"
+    with pytest.raises(ValueError, match="all CropJob or all RectCropJob"):
+        crop(
+            [video],
+            [CropJob(size=128), RectCropJob(x0=0.0, y0=0.0, w=0.5, h=0.5)],  # type: ignore[arg-type]
+            out_dir,
+            ffmpeg_opts={"dry_run": True},
+        )
+
+
+def test_rect_crop_normalized_bounds_validation(tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"data")
+    out_dir = tmp_path / "out"
+    with pytest.raises(ValueError, match="x0 \\+ w must be <= 1.0"):
+        crop(
+            [video],
+            [RectCropJob(x0=0.8, y0=0.0, w=0.3, h=0.5)],
             out_dir,
             ffmpeg_opts={"dry_run": True},
         )
