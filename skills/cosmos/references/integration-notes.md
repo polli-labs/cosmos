@@ -26,4 +26,4 @@ Any changes in these areas require skill freshness review:
 - SDK function signatures and option models
 - ffmpeg bootstrap/detection behavior
 - provenance schema or emitted field sets
-- crop semantics (square offsets, trim windows, naming)
+- crop semantics (square offsets, rect coords, naming)

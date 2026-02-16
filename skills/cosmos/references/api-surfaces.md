@@ -12,10 +12,11 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 ### Crop
 
 - `crop(input_videos, jobs, out_dir, *, ffmpeg_opts) -> list[Path]`
-- Job type:
-  - `CropJob` (square mode; supports `center_*` or margin-relative `offset_*`, optional `start`/`end` trim)
-- Trim contract:
-  - when both `start` and `end` are set, ffmpeg args must encode duration as `-t (end-start)` (not absolute `-to`).
+- Job types:
+  - `CropJob` (square mode)
+  - `RectCropJob` (rect mode, includes `view_id`, `annotations`)
+- `crop()` requires homogeneous job lists (all square or all rect).
+- Trim semantics: when both `start` and `end` are set, ffmpeg args should use duration (`-t end-start`) rather than absolute `-to end`.
 
 ### Provenance
 
@@ -36,15 +37,16 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 ### Crop commands
 
 - `cosmos crop run`
-  - supports square crop flags:
-    - `--jobs-file`
-    - `--size --offset-x --offset-y --center-x --center-y`
-    - `--trim-start --trim-end`
-    - `--prefer-hevc-hw`
+  - supports square defaults plus rect mode flags:
+    - `--crop-mode {square|rect}`
+    - `--x0 --y0 --width --height [--px]`
+- `cosmos crop curated-views`
+  - `--spec --source-root --out [--clip-pattern]`
 
 ### Non-interactive safety
 
 - `--yes` to suppress prompts.
+- `--skip-ffmpeg-check` to suppress bootstrap prompt.
 - `--dry-run` must avoid side-effectful encode execution.
 
 ## Exit-code policy (target contract for redesign)

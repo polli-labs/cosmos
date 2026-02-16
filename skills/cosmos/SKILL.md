@@ -1,6 +1,6 @@
 ---
 name: cosmos
-description: "Cosmos repo knowledge -- unified ingest/crop/provenance toolkit for COSM camera media processing, including square crop trim semantics and ffmpeg encoder behavior. Inject before modifying cosmos or planning CLI/provenance/E2E changes."
+description: "Cosmos repo knowledge -- unified ingest/crop/provenance toolkit for COSM camera media processing, including rectangular crop and ffmpeg bootstrap behavior. Inject before modifying cosmos or planning CLI/provenance/E2E changes."
 version: "0.1.0"
 x:
   source_repo: "cosmos"
@@ -20,6 +20,7 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 - Version: 0.3.4
 - CLIs: `cosmos` and `squarecrop`
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob`
+- Rect crop support: `RectCropJob` + `cosmos crop curated-views`
 - Crop trim semantics: `start`/`end` windows use `-ss start` + `-t (end-start)` for duration-correct outputs.
 - ffmpeg resolution order: `COSMOS_FFMPEG` -> `~/.local/share/cosmos/bin/ffmpeg` -> system `PATH`
 
