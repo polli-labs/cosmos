@@ -11,6 +11,6 @@ def test_build_square_crop_args_with_times(tmp_path: Path) -> None:
     )
     joined = " ".join(args)
     assert "-ss 1.5" in joined
-    assert "-to 3.0" in joined
+    assert "-t 1.5" in joined
     assert "-vf crop=100:100:0:0" in joined
     assert str(out) in joined
