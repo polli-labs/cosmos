@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.3.4 — Duration-correct crop trimming + skill governance bootstrap (2026-02-16)
+- Fix crop trimming args in `cosmos/ffmpeg/args.py`: use `-t (end-start)` after `-ss` input seeking, replacing `-to end` so trim windows with non-zero starts produce correct durations.
+- Update crop args tests to assert duration-based trim behavior (`-t`) for start/end windows.
+- Add in-repo Cosmos skill packaging and maintenance ritual (`skills/cosmos/*`) and enforce freshness requirements in `AGENTS.md` (POL-486).
+
 ## 0.3.3 — Encoder guardrails + HEVC preference (2026-02-11)
 - Add macOS encoder guardrail in `choose_encoder_for_video`: when H.264 VideoToolbox is selected for >4K inputs, proactively fall back to `libx264` with a clear runtime tip.
 - Add `--prefer-hevc-hw` for squarecrop (`squarecrop` and `cosmos crop run`) to prefer `hevc_videotoolbox` on macOS when available.

@@ -9,7 +9,7 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/sdk/ingest.py`
   - ingest orchestrator and `IngestOptions`.
 - `cosmos/sdk/crop.py`
-  - crop orchestrator for `CropJob` and `RectCropJob`.
+  - crop orchestrator for `CropJob`.
 - `cosmos/sdk/provenance.py`
   - emitters/resolvers for run/artifact provenance.
 
@@ -22,17 +22,11 @@ Detailed module map for the current `cosmos` repo state.
 
 - `cosmos/crop/squarecrop.py`
   - square crop filter planning/execution.
-- `cosmos/crop/rectcrop.py`
-  - rectangular crop filter planning/execution.
 - `cosmos/crop/jobs.py`
-  - jobs parser for square and rect modes.
-- `cosmos/crop/curated_views.py`
-  - curated-view-spec parser and source clip mapping.
+  - jobs parser for square mode, including trim and margin-relative offsets.
 
 - `cosmos/ffmpeg/detect.py`
-  - encoder selection, ffmpeg/ffprobe resolution, bootstrap prompt.
-- `cosmos/ffmpeg/bootstrap.py`
-  - Linux NVENC-capable ffmpeg installer.
+  - encoder selection and ffmpeg/ffprobe resolution.
 - `cosmos/ffmpeg/args.py`
   - ffmpeg arg builders used by crop/ingest paths.
 - `cosmos/ffmpeg/presets.py`
@@ -43,7 +37,7 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/cli/ingest_cli.py`
   - ingest run command + non-interactive flags.
 - `cosmos/cli/crop_cli.py`
-  - crop run + curated-views command surfaces.
+  - square crop run command surface.
 - `cosmos/cli/provenance_cli.py`
   - provenance lookup helpers.
 
@@ -61,7 +55,6 @@ Join key stability requirement:
 
 ## Runtime behavior highlights
 
-- Rect crop now supports normalized and pixel coordinate specs.
-- Crop CLI supports `--crop-mode rect` and curated views ingestion.
+- Crop trim windows are duration-correct: ffmpeg args use `-ss start` + `-t (end-start)` when `start` and `end` are provided.
+- Crop offset semantics are margin-relative (`offset_x`/`offset_y` in `[-1, 1]`) with center coordinates as an alternate form.
 - Ingest and crop paths honor ffmpeg resolution helpers (env override, cosmos-managed binary, PATH fallback).
-- Linux+NVIDIA bootstrap prompt can install NVENC-capable ffmpeg unless suppressed.
