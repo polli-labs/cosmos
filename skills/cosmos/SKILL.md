@@ -6,7 +6,7 @@ x:
   source_repo: "cosmos"
   source_branch: "main"
   source_commit: "2929d18"
-  package_version: "0.3.3"
+  package_version: "0.4.0"
   generator: "codex"
   last_modified: "2026-02-13T00:00:00Z"
 ---
@@ -17,10 +17,11 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 
 ## Quick Facts
 
-- Version: 0.3.3
+- Version: 0.4.0
 - CLIs: `cosmos` and `squarecrop`
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob`
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
+- Preview support: `cosmos crop preview` + `cosmos crop curated-views-preview` emitting `cosmos_crop_preview_run.v1.json` and per-clip `preview_plan.v1.json` bundles
 - ffmpeg resolution order: `COSMOS_FFMPEG` -> `~/.local/share/cosmos/bin/ffmpeg` -> system `PATH`
 
 ## Use This Skill When
@@ -40,6 +41,7 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 
 - Route business logic through `cosmos/sdk/*`; keep CLI layers thin.
 - Preserve square-crop offset semantics (`offset_x`/`offset_y` in `[-1, 1]`).
+- Keep preview geometry parity with crop execution math (rect clamp/even-round behavior, square offset/center semantics).
 - Keep provenance join key stable: `view.source.sha256 == clip.output.sha256`.
 - Use shared ffmpeg helpers in `cosmos/ffmpeg/*` instead of hardcoded `ffmpeg`/`ffprobe` commands.
 - Keep interactive prompts behind TTY-safe CLI boundaries (`--yes` and `--skip-ffmpeg-check` for non-interactive runs).

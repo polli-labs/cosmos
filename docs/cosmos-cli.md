@@ -7,6 +7,8 @@ cosmos --help
 cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
+cosmos crop preview --help
+cosmos crop curated-views-preview --help
 ```
 
 Notes
@@ -31,3 +33,20 @@ Output modes
 Process command
 - `cosmos process` is the canonical ingest -> optional crop workflow command.
 - `cosmos pipeline` remains as a deprecated compatibility alias.
+
+Crop preview commands
+- `cosmos crop preview` renders non-interactive contact-sheet + stacked overlay previews from jobs (or single flag-defined crop).
+- `cosmos crop curated-views-preview` does the same for curated-view specs grouped by source clip.
+- Shared preview flags:
+  - `--frame` for keyframe selectors (`start`, `mid`, `end`, `start+2.0`, `12.5`)
+  - `--stack-time` for absolute stacked-overlay times
+  - `--render-max-width`, `--grid-step-px`, `--show-rulers/--no-rulers`, `--alpha`
+  - `--dry-run` to emit plans/paths without rendering images
+
+Preview outputs
+- Run summary: `cosmos_crop_preview_run.v1.json`
+- Per-clip bundle: `preview_<clip>_<hash>/`
+  - `preview_plan.v1.json`
+  - `frames/*.png`
+  - `sheets/sheet_frame_<selector>.png`
+  - `stacked/stacked_t_<time>.png`

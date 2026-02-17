@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/crop_preview_run.v1.json",
+  "title": "Cosmos Crop Preview Run (v1)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "preview_run_id",
+    "tool",
+    "version",
+    "time",
+    "output_dir",
+    "frame_selectors",
+    "stack_times_sec",
+    "render_defaults",
+    "clips"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "preview_run_id": {"type": "string"},
+    "tool": {"type": "string"},
+    "version": {"type": "string"},
+    "git": {"type": ["string", "null"]},
+    "time": {"type": "string", "format": "date-time"},
+    "output_dir": {"type": "string"},
+    "frame_selectors": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "stack_times_sec": {
+      "type": "array",
+      "items": {"type": "number"}
+    },
+    "render_defaults": {"type": "object"},
+    "ffmpeg": {"type": ["object", "null"]},
+    "system": {"type": ["object", "null"]},
+    "clips": {
+      "type": "array",
+      "items": {"$ref": "crop_preview_plan.v1.json"}
+    }
+  }
+}

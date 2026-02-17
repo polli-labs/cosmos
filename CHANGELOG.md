@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.0 — Crop preview contact sheets + stacked overlays (2026-02-17)
+- Add non-interactive crop preview pipeline with layered architecture under `cosmos/preview/`:
+  - planner (geometry + selector resolution),
+  - frame extraction (ffmpeg),
+  - static renderer (contact sheets + stacked overlays).
+- Add SDK preview entry points:
+  - `preview(input_videos, jobs, out_dir, *, options)`
+  - `preview_curated_views(pairs, out_dir, *, options)`
+- Add new crop CLI surfaces:
+  - `cosmos crop preview`
+  - `cosmos crop curated-views-preview`
+- Add new versioned preview contracts and schemas:
+  - `cosmos_crop_preview_run.v1.json`
+  - per-clip `preview_plan.v1.json`
+  - schema files under both `docs/schemas/` and `schema/cosmos/`.
+- Add tests for selector parsing, geometry planning warnings, and CLI JSON contracts.
+- Update docs + Cosmos skill references with preview workflow and artifact layout.
+
 ## 0.3.3 — Encoder guardrails + HEVC preference (2026-02-11)
 - Add macOS encoder guardrail in `choose_encoder_for_video`: when H.264 VideoToolbox is selected for >4K inputs, proactively fall back to `libx264` with a clear runtime tip.
 - Add `--prefer-hevc-hw` for squarecrop (`squarecrop` and `cosmos crop run`) to prefer `hevc_videotoolbox` on macOS when available.

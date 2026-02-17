@@ -17,6 +17,15 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - `RectCropJob` (rect mode, includes `view_id`, `annotations`)
 - `crop()` requires homogeneous job lists (all square or all rect).
 
+### Preview
+
+- `preview(input_videos, jobs, out_dir, *, options) -> PreviewRunResult`
+- `preview_curated_views(pairs, out_dir, *, options) -> PreviewRunResult`
+- `RenderOptions` controls keyframe selectors, stacked overlay times, render scale, diagnostics, and dry-run behavior.
+- Preview outputs are bundle-oriented:
+  - run-level `cosmos_crop_preview_run.v1.json`
+  - per-clip `preview_plan.v1.json` + image artifacts (`frames/`, `sheets/`, `stacked/`)
+
 ### Provenance
 
 - Emitters:
@@ -41,6 +50,12 @@ Current SDK and CLI contracts to preserve when changing interfaces.
     - `--x0 --y0 --width --height [--px]`
 - `cosmos crop curated-views`
   - `--spec --source-root --out [--clip-pattern]`
+- `cosmos crop preview`
+  - jobs-based preview renderer (single clip or multi-clip)
+  - key flags: `--frame`, `--stack-time`, `--render-max-width`, `--grid-step-px`, `--show-rulers`, `--alpha`
+- `cosmos crop curated-views-preview`
+  - curated-spec preview renderer grouped by source clip
+  - key flags mirror `crop preview` and include `--spec --source-root --out [--clip-pattern]`
 
 ### Non-interactive safety
 

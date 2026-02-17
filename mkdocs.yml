@@ -32,6 +32,8 @@ nav:
       - clip.v1.json: schemas/clip.v1.json
       - crop_run.v1.json: schemas/crop_run.v1.json
       - view.v1.json: schemas/view.v1.json
+      - crop_preview_run.v1.json: schemas/crop_preview_run.v1.json
+      - crop_preview_plan.v1.json: schemas/crop_preview_plan.v1.json
 plugins:
   - search
   - mkdocstrings:
