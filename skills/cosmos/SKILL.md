@@ -5,10 +5,10 @@ version: "0.1.0"
 x:
   source_repo: "cosmos"
   source_branch: "main"
-  source_commit: "2929d18"
+  source_commit: "261d5f1"
   package_version: "0.4.0"
   generator: "codex"
-  last_modified: "2026-02-13T00:00:00Z"
+  last_modified: "2026-02-19T00:00:00Z"
 ---
 
 # Cosmos
