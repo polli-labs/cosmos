@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/crop_preview_plan.v1.json",
+  "title": "Cosmos Crop Preview Plan (v1)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "source",
+    "video",
+    "frame_selectors",
+    "stack_times_sec",
+    "resolved_frames",
+    "views",
+    "artifacts"
+  ],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "source": {"type": "object"},
+    "video": {"type": "object"},
+    "frame_selectors": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "stack_times_sec": {
+      "type": "array",
+      "items": {"type": "number"}
+    },
+    "resolved_frames": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["selector", "time_sec"],
+        "properties": {
+          "selector": {"type": "string"},
+          "time_sec": {"type": "number"},
+          "warnings": {
+            "type": "array",
+            "items": {"type": "string"}
+          }
+        }
+      }
+    },
+    "views": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["view_id", "crop_mode", "crop_input", "crop_px", "frame_times"],
+        "properties": {
+          "view_id": {"type": "string"},
+          "crop_mode": {"type": "string"},
+          "crop_input": {"type": "object"},
+          "crop_px": {
+            "type": "object",
+            "required": ["x_px", "y_px", "w_px", "h_px", "x_norm", "y_norm", "w_norm", "h_norm"],
+            "properties": {
+              "x_px": {"type": "integer"},
+              "y_px": {"type": "integer"},
+              "w_px": {"type": "integer"},
+              "h_px": {"type": "integer"},
+              "x_norm": {"type": "number"},
+              "y_norm": {"type": "number"},
+              "w_norm": {"type": "number"},
+              "h_norm": {"type": "number"}
+            }
+          },
+          "trim_start_sec": {"type": ["number", "null"]},
+          "trim_end_sec": {"type": ["number", "null"]},
+          "frame_times": {
+            "type": "array",
+            "items": {"$ref": "#/properties/resolved_frames/items"}
+          },
+          "frame_times_sec": {
+            "type": "array",
+            "items": {"type": "number"}
+          },
+          "warnings": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "annotations": {"type": ["object", "null"]}
+        }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "artifacts": {
+      "type": "object",
+      "required": ["plan", "frames", "sheets", "stacked"],
+      "properties": {
+        "plan": {"type": "string"},
+        "frames": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "sheets": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "stacked": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      }
+    }
+  }
+}

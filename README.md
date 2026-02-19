@@ -24,6 +24,7 @@ cosmos --help
 cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
+cosmos crop preview --help
 squarecrop --help
 ```
 
@@ -46,7 +47,12 @@ make run.ingest IN=/path/to/raw OUT=./out YES=1 WINDOW=10
 make run.crop INPUT=/path/to/clip.mp4 OUT=_work/out JOBS=_work/job.json YES=1
 ```
 
-4) Inspect provenance
+4) Render crop previews (contact sheets + stacked overlays)
+```
+cosmos crop preview --input /path/to/clip.mp4 --jobs-file _work/job.json --out _work/preview --frame start --frame mid --stack-time 0 --yes
+```
+
+5) Inspect provenance
 ```
 make run.provenance DIR=_work/out
 ```

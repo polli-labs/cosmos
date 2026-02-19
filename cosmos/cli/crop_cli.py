@@ -15,9 +15,54 @@ from cosmos.cli.io import (
     resolve_output_mode,
 )
 from cosmos.sdk.crop import CropJob, RectCropJob, crop
+from cosmos.sdk.preview import RenderOptions
+from cosmos.sdk.preview import preview as sdk_preview
+from cosmos.sdk.preview import preview_curated_views as sdk_preview_curated_views
 
 app = typer.Typer(help="Post-processing crop (square or rectangular)")
 CropJobs = list[CropJob] | list[RectCropJob]
+
+PreviewFrameOption = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--frame",
+        help="Frame selector(s): start|mid|end, start+2.0/end-1.0, or absolute seconds.",
+    ),
+]
+PreviewStackTimeOption = Annotated[
+    list[float] | None,
+    typer.Option(
+        "--stack-time",
+        help="Absolute seconds for stacked overlays (repeatable). Defaults to 0.",
+    ),
+]
+PreviewRenderMaxWidthOption = Annotated[
+    int,
+    typer.Option("--render-max-width", help="Maximum width (px) for extracted preview frames."),
+]
+PreviewGridStepOption = Annotated[
+    int,
+    typer.Option("--grid-step-px", help="Grid/ruler step in pixels. Set 0 to disable."),
+]
+PreviewShowRulersOption = Annotated[
+    bool,
+    typer.Option("--show-rulers/--no-rulers", help="Render ruler ticks/labels on overlays."),
+]
+PreviewShowCrosshairOption = Annotated[
+    bool,
+    typer.Option("--show-crosshair/--no-crosshair", help="Render a center crosshair per crop."),
+]
+PreviewAlphaOption = Annotated[
+    float,
+    typer.Option("--alpha", help="Overlay fill alpha in [0,1] for per-view contact cells."),
+]
+PreviewSourceShaOption = Annotated[
+    bool,
+    typer.Option(
+        "--source-sha/--no-source-sha",
+        help="Hash source videos into preview plan metadata (slower on large files).",
+    ),
+]
 
 
 def _resolve_crop_mode(raw_mode: str) -> str:
@@ -148,6 +193,39 @@ def _resolve_jobs(
         px=px,
         trim_start=trim_start,
         trim_end=trim_end,
+    )
+
+
+def _resolve_preview_options(
+    *,
+    frame_selectors: list[str] | None,
+    stack_times: list[float] | None,
+    render_max_width: int,
+    grid_step_px: int,
+    show_rulers: bool,
+    show_crosshair: bool,
+    alpha: float,
+    dry_run: bool,
+    include_source_sha: bool,
+) -> RenderOptions:
+    selectors = frame_selectors or ["start"]
+    stacks = stack_times or [0.0]
+    if render_max_width <= 0:
+        raise typer.BadParameter("--render-max-width must be > 0")
+    if grid_step_px < 0:
+        raise typer.BadParameter("--grid-step-px must be >= 0")
+    if alpha < 0.0 or alpha > 1.0:
+        raise typer.BadParameter("--alpha must be in [0,1]")
+    return RenderOptions(
+        frame_selectors=selectors,
+        stack_times_sec=stacks,
+        render_max_width=render_max_width,
+        grid_step_px=grid_step_px,
+        show_rulers=show_rulers,
+        show_crosshair=show_crosshair,
+        alpha=alpha,
+        dry_run=dry_run,
+        include_source_sha=include_source_sha,
     )
 
 
@@ -313,6 +391,266 @@ def run(
         return
 
     emit_paths(results, mode=output_mode)
+
+
+@app.command(name="preview")
+def preview(
+    input_videos: Annotated[
+        list[Path] | None,
+        typer.Option("--input", help="One or more input MP4s", exists=True, show_default=False),
+    ] = None,
+    out_dir: Annotated[
+        Path | None, typer.Option("--out", dir_okay=True, help="Directory for preview outputs")
+    ] = None,
+    jobs_file: Annotated[
+        Path | None,
+        typer.Option("--jobs-file", exists=True, help="Crop jobs JSON (square or rect)"),
+    ] = None,
+    crop_mode: Annotated[
+        str,
+        typer.Option("--crop-mode", help="Crop mode for flag-based jobs: square (default) or rect"),
+    ] = "square",
+    size: Annotated[
+        int, typer.Option(help="Square target size (pixels) when not using --jobs-file")
+    ] = 1080,
+    offset_x: Annotated[
+        float | None,
+        typer.Option(
+            help="Margin-relative horizontal offset [-1,1]. Cannot be combined with centers."
+        ),
+    ] = None,
+    offset_y: Annotated[
+        float | None,
+        typer.Option(
+            help="Margin-relative vertical offset [-1,1]. Cannot be combined with centers."
+        ),
+    ] = None,
+    center_x: Annotated[
+        float | None,
+        typer.Option(help="Absolute center X in [0,1] for square mode when offsets are omitted."),
+    ] = None,
+    center_y: Annotated[
+        float | None,
+        typer.Option(help="Absolute center Y in [0,1] for square mode when offsets are omitted."),
+    ] = None,
+    x0: Annotated[
+        float | None,
+        typer.Option("--x0", help="Rect crop: left edge (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    y0: Annotated[
+        float | None,
+        typer.Option("--y0", help="Rect crop: top edge (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    width: Annotated[
+        float | None,
+        typer.Option("--width", help="Rect crop: width (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    height: Annotated[
+        float | None,
+        typer.Option("--height", help="Rect crop: height (normalized 0-1 or pixels with --px)"),
+    ] = None,
+    px: Annotated[
+        bool,
+        typer.Option("--px", help="Interpret rect coords as pixels instead of normalized 0-1"),
+    ] = False,
+    trim_start: Annotated[
+        float | None,
+        typer.Option(help="Optional trim start in seconds (for flag-based single-job mode)."),
+    ] = None,
+    trim_end: Annotated[
+        float | None,
+        typer.Option(help="Optional trim end in seconds (for flag-based single-job mode)."),
+    ] = None,
+    frame: PreviewFrameOption = None,
+    stack_time: PreviewStackTimeOption = None,
+    render_max_width: PreviewRenderMaxWidthOption = 1600,
+    grid_step_px: PreviewGridStepOption = 400,
+    show_rulers: PreviewShowRulersOption = True,
+    show_crosshair: PreviewShowCrosshairOption = True,
+    alpha: PreviewAlphaOption = 0.25,
+    include_source_sha: PreviewSourceShaOption = False,
+    non_interactive: Annotated[
+        bool,
+        typer.Option(
+            "--yes", "--no-input", "--no-tui", help="Skip interactive prompts (agent mode)"
+        ),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run", help="Build preview plan and artifact paths; do not render images"
+        ),
+    ] = False,
+    skip_ffmpeg_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ffmpeg-check",
+            help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
+        ),
+    ] = False,
+    json_out: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable JSON to stdout")
+    ] = False,
+    plain_out: Annotated[
+        bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
+    ] = False,
+) -> None:
+    """Render non-interactive crop preview contact sheets + stacked overlays."""
+    from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
+
+    output_mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
+    prompt_allowed = can_prompt(no_input=non_interactive)
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and prompt_allowed)
+
+    try:
+        normalized_mode = _resolve_crop_mode(crop_mode)
+        videos, resolved_out_dir = _resolve_io_paths(
+            input_videos=input_videos,
+            out_dir=out_dir,
+            prompt_allowed=prompt_allowed,
+        )
+        parsed_jobs = _resolve_jobs(
+            jobs_file=jobs_file,
+            crop_mode=normalized_mode,
+            size=size,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            center_x=center_x,
+            center_y=center_y,
+            x0=x0,
+            y0=y0,
+            width=width,
+            height=height,
+            px=px,
+            trim_start=trim_start,
+            trim_end=trim_end,
+        )
+        options = _resolve_preview_options(
+            frame_selectors=frame,
+            stack_times=stack_time,
+            render_max_width=render_max_width,
+            grid_step_px=grid_step_px,
+            show_rulers=show_rulers,
+            show_crosshair=show_crosshair,
+            alpha=alpha,
+            dry_run=dry_run,
+            include_source_sha=include_source_sha,
+        )
+        result = sdk_preview(videos, parsed_jobs, resolved_out_dir, options=options)
+    except Exception as exc:  # noqa: BLE001
+        raise_mapped_exit(exc)
+        return
+
+    outputs = result.outputs
+    if output_mode == "json":
+        emit_payload(
+            {
+                "command": "cosmos crop preview",
+                "dry_run": dry_run,
+                "run_artifact": str(result.run_path),
+                "clip_plans": [str(path) for path in result.clip_plan_paths],
+                "sheets": [str(path) for path in result.sheet_paths],
+                "stacked": [str(path) for path in result.stacked_paths],
+                "outputs": [str(path) for path in outputs],
+                "count": len(outputs),
+            },
+            mode=output_mode,
+        )
+        return
+
+    emit_paths(outputs, mode=output_mode)
+
+
+@app.command(name="curated-views-preview")
+def curated_views_preview(
+    spec: Annotated[Path, typer.Option("--spec", exists=True, help="Curated views spec JSON")],
+    source_root: Annotated[
+        Path, typer.Option("--source-root", exists=True, help="Root directory of source clips")
+    ],
+    out_dir: Annotated[Path, typer.Option("--out", help="Output directory for preview bundles")],
+    clip_pattern: Annotated[
+        str,
+        typer.Option(
+            "--clip-pattern", help="Pattern for source clips (default: {date}/8k/{clip}.mp4)"
+        ),
+    ] = "{date}/8k/{clip}.mp4",
+    frame: PreviewFrameOption = None,
+    stack_time: PreviewStackTimeOption = None,
+    render_max_width: PreviewRenderMaxWidthOption = 1600,
+    grid_step_px: PreviewGridStepOption = 400,
+    show_rulers: PreviewShowRulersOption = True,
+    show_crosshair: PreviewShowCrosshairOption = True,
+    alpha: PreviewAlphaOption = 0.25,
+    include_source_sha: PreviewSourceShaOption = False,
+    non_interactive: Annotated[
+        bool, typer.Option("--yes", "--no-input", help="Skip confirmation prompt")
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run", help="Build preview plan and artifact paths; do not render images"
+        ),
+    ] = False,
+    skip_ffmpeg_check: Annotated[
+        bool,
+        typer.Option(
+            "--skip-ffmpeg-check",
+            help="Skip the NVENC ffmpeg bootstrap check (for CI/headless use).",
+        ),
+    ] = False,
+    json_out: Annotated[
+        bool, typer.Option("--json", help="Emit machine-readable JSON to stdout")
+    ] = False,
+    plain_out: Annotated[
+        bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
+    ] = False,
+) -> None:
+    """Render non-interactive crop preview artifacts for curated views specs."""
+    from cosmos.crop.curated_views import parse_curated_views
+    from cosmos.ffmpeg.detect import prompt_bootstrap_if_needed
+
+    output_mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
+    prompt_allowed = can_prompt(no_input=non_interactive)
+    prompt_bootstrap_if_needed(interactive=not skip_ffmpeg_check and prompt_allowed)
+
+    try:
+        pairs = parse_curated_views(spec, source_root, clip_pattern=clip_pattern)
+        if output_mode == "human":
+            info(f"{len(pairs)} curated views parsed from spec")
+        options = _resolve_preview_options(
+            frame_selectors=frame,
+            stack_times=stack_time,
+            render_max_width=render_max_width,
+            grid_step_px=grid_step_px,
+            show_rulers=show_rulers,
+            show_crosshair=show_crosshair,
+            alpha=alpha,
+            dry_run=dry_run,
+            include_source_sha=include_source_sha,
+        )
+        result = sdk_preview_curated_views(pairs, out_dir, options=options)
+    except Exception as exc:  # noqa: BLE001
+        raise_mapped_exit(exc)
+        return
+
+    outputs = result.outputs
+    if output_mode == "json":
+        emit_payload(
+            {
+                "command": "cosmos crop curated-views-preview",
+                "dry_run": dry_run,
+                "run_artifact": str(result.run_path),
+                "clip_plans": [str(path) for path in result.clip_plan_paths],
+                "sheets": [str(path) for path in result.sheet_paths],
+                "stacked": [str(path) for path in result.stacked_paths],
+                "outputs": [str(path) for path in outputs],
+                "count": len(outputs),
+            },
+            mode=output_mode,
+        )
+        return
+
+    emit_paths(outputs, mode=output_mode)
 
 
 @app.command(name="curated-views")

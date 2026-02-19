@@ -70,8 +70,41 @@ jobs = parse_jobs_json(Path("job_settings.json"))
 outputs = crop([Path("clip.mp4")], jobs, Path("./crops"))
 ```
 
+## Crop Preview API
+
+Functions
+```python
+from pathlib import Path
+
+from cosmos.crop.jobs import parse_jobs_json
+from cosmos.sdk.preview import RenderOptions, preview
+
+jobs = parse_jobs_json(Path("jobs.json"))
+result = preview(
+    input_videos=[Path("clip.mp4")],
+    jobs=jobs,
+    out_dir=Path("./preview"),
+    options=RenderOptions(
+        frame_selectors=["start", "mid"],
+        stack_times_sec=[0.0, 12.5],
+        render_max_width=1600,
+        grid_step_px=400,
+        show_rulers=True,
+        alpha=0.25,
+    ),
+)
+print(result.run_path)
+```
+
+Preview outputs
+- Run-level artifact: `cosmos_crop_preview_run.v1.json`
+- Per-clip bundle:
+  - `preview_plan.v1.json` (resolved geometry/time contract)
+  - `frames/*.png`
+  - `sheets/sheet_frame_<selector>.png`
+  - `stacked/stacked_t_<time>.png`
+
 ## Error handling
 - Ingest raises `ValueError` if the input folder is missing.
 - Under dry‑run, `ingest` returns planned output paths; no ffmpeg errors are raised.
 - During real runs, ffmpeg failures are captured into `{clip}.mp4.log.txt` and surfaced as a failed result in CLI; the SDK returns paths for successful clips only.
-

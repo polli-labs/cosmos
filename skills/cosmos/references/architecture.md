@@ -5,11 +5,13 @@ Detailed module map for the current `cosmos` repo state.
 ## Package map
 
 - `cosmos/sdk/__init__.py`
-  - public exports for ingest/crop.
+  - public exports for ingest/crop/preview.
 - `cosmos/sdk/ingest.py`
   - ingest orchestrator and `IngestOptions`.
 - `cosmos/sdk/crop.py`
   - crop orchestrator for `CropJob` and `RectCropJob`.
+- `cosmos/sdk/preview.py`
+  - preview orchestrator wrappers and `RenderOptions`.
 - `cosmos/sdk/provenance.py`
   - emitters/resolvers for run/artifact provenance.
 
@@ -29,6 +31,19 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/crop/curated_views.py`
   - curated-view-spec parser and source clip mapping.
 
+- `cosmos/preview/contracts.py`
+  - preview run/plan Pydantic contracts for bundle artifacts.
+- `cosmos/preview/selectors.py`
+  - frame selector parsing and selector-to-time resolution.
+- `cosmos/preview/planner.py`
+  - deterministic rect/square preview geometry and warnings.
+- `cosmos/preview/frames.py`
+  - ffmpeg frame extraction builder/executor.
+- `cosmos/preview/render.py`
+  - static overlay rendering for per-view contact cells and stacked overlays.
+- `cosmos/preview/pipeline.py`
+  - end-to-end preview pipeline orchestration and artifact writing.
+
 - `cosmos/ffmpeg/detect.py`
   - encoder selection, ffmpeg/ffprobe resolution, bootstrap prompt.
 - `cosmos/ffmpeg/bootstrap.py`
@@ -43,7 +58,7 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/cli/ingest_cli.py`
   - ingest run command + non-interactive flags.
 - `cosmos/cli/crop_cli.py`
-  - crop run + curated-views command surfaces.
+  - crop run + curated-views + preview command surfaces.
 - `cosmos/cli/provenance_cli.py`
   - provenance lookup helpers.
 
@@ -52,9 +67,11 @@ Detailed module map for the current `cosmos` repo state.
 - Run-level files:
   - `cosmos_ingest_run.v1.json`
   - `cosmos_crop_run.v1.json`
+  - `cosmos_crop_preview_run.v1.json`
 - Artifact-level files:
   - `*.mp4.cosmos_clip.v1.json`
   - `*.mp4.cosmos_view.v1.json`
+  - `preview_<clip>_<hash>/preview_plan.v1.json`
 
 Join key stability requirement:
 - `view.source.sha256 == clip.output.sha256`
@@ -63,5 +80,6 @@ Join key stability requirement:
 
 - Rect crop now supports normalized and pixel coordinate specs.
 - Crop CLI supports `--crop-mode rect` and curated views ingestion.
+- Crop preview now supports contact sheets + stacked overlays with frame selectors and a GUI-ready preview-plan contract.
 - Ingest and crop paths honor ffmpeg resolution helpers (env override, cosmos-managed binary, PATH fallback).
 - Linux+NVIDIA bootstrap prompt can install NVENC-capable ffmpeg unless suppressed.
