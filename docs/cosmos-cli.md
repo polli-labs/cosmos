@@ -40,7 +40,7 @@ Crop preview commands
 - Shared preview flags:
   - `--frame` for keyframe selectors (`start`, `mid`, `end`, `start+2.0`, `12.5`)
   - `--stack-time` for absolute stacked-overlay times
-  - `--render-max-width`, `--grid-step-px`, `--show-rulers/--no-rulers`, `--alpha`
+  - `--render-max-width`, `--grid-step-px`, `--show-rulers/--no-rulers`, `--show-crosshair/--no-crosshair`, `--alpha`
   - `--dry-run` to emit plans/paths without rendering images
 
 Preview outputs

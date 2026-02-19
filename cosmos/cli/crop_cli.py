@@ -15,18 +15,54 @@ from cosmos.cli.io import (
     resolve_output_mode,
 )
 from cosmos.sdk.crop import CropJob, RectCropJob, crop
-from cosmos.sdk.preview import (
-    RenderOptions,
-)
-from cosmos.sdk.preview import (
-    preview as sdk_preview,
-)
-from cosmos.sdk.preview import (
-    preview_curated_views as sdk_preview_curated_views,
-)
+from cosmos.sdk.preview import RenderOptions
+from cosmos.sdk.preview import preview as sdk_preview
+from cosmos.sdk.preview import preview_curated_views as sdk_preview_curated_views
 
 app = typer.Typer(help="Post-processing crop (square or rectangular)")
 CropJobs = list[CropJob] | list[RectCropJob]
+
+PreviewFrameOption = Annotated[
+    list[str] | None,
+    typer.Option(
+        "--frame",
+        help="Frame selector(s): start|mid|end, start+2.0/end-1.0, or absolute seconds.",
+    ),
+]
+PreviewStackTimeOption = Annotated[
+    list[float] | None,
+    typer.Option(
+        "--stack-time",
+        help="Absolute seconds for stacked overlays (repeatable). Defaults to 0.",
+    ),
+]
+PreviewRenderMaxWidthOption = Annotated[
+    int,
+    typer.Option("--render-max-width", help="Maximum width (px) for extracted preview frames."),
+]
+PreviewGridStepOption = Annotated[
+    int,
+    typer.Option("--grid-step-px", help="Grid/ruler step in pixels. Set 0 to disable."),
+]
+PreviewShowRulersOption = Annotated[
+    bool,
+    typer.Option("--show-rulers/--no-rulers", help="Render ruler ticks/labels on overlays."),
+]
+PreviewShowCrosshairOption = Annotated[
+    bool,
+    typer.Option("--show-crosshair/--no-crosshair", help="Render a center crosshair per crop."),
+]
+PreviewAlphaOption = Annotated[
+    float,
+    typer.Option("--alpha", help="Overlay fill alpha in [0,1] for per-view contact cells."),
+]
+PreviewSourceShaOption = Annotated[
+    bool,
+    typer.Option(
+        "--source-sha/--no-source-sha",
+        help="Hash source videos into preview plan metadata (slower on large files).",
+    ),
+]
 
 
 def _resolve_crop_mode(raw_mode: str) -> str:
@@ -167,6 +203,7 @@ def _resolve_preview_options(
     render_max_width: int,
     grid_step_px: int,
     show_rulers: bool,
+    show_crosshair: bool,
     alpha: float,
     dry_run: bool,
     include_source_sha: bool,
@@ -185,6 +222,7 @@ def _resolve_preview_options(
         render_max_width=render_max_width,
         grid_step_px=grid_step_px,
         show_rulers=show_rulers,
+        show_crosshair=show_crosshair,
         alpha=alpha,
         dry_run=dry_run,
         include_source_sha=include_source_sha,
@@ -423,43 +461,14 @@ def preview(
         float | None,
         typer.Option(help="Optional trim end in seconds (for flag-based single-job mode)."),
     ] = None,
-    frame: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--frame",
-            help="Frame selector(s): start|mid|end, start+2.0/end-1.0, or absolute seconds.",
-        ),
-    ] = None,
-    stack_time: Annotated[
-        list[float] | None,
-        typer.Option(
-            "--stack-time",
-            help="Absolute seconds for stacked overlays (repeatable). Defaults to 0.",
-        ),
-    ] = None,
-    render_max_width: Annotated[
-        int,
-        typer.Option("--render-max-width", help="Maximum width (px) for extracted preview frames."),
-    ] = 1600,
-    grid_step_px: Annotated[
-        int,
-        typer.Option("--grid-step-px", help="Grid/ruler step in pixels. Set 0 to disable."),
-    ] = 400,
-    show_rulers: Annotated[
-        bool,
-        typer.Option("--show-rulers/--no-rulers", help="Render ruler ticks/labels on overlays."),
-    ] = True,
-    alpha: Annotated[
-        float,
-        typer.Option("--alpha", help="Overlay fill alpha in [0,1] for per-view contact cells."),
-    ] = 0.25,
-    include_source_sha: Annotated[
-        bool,
-        typer.Option(
-            "--source-sha/--no-source-sha",
-            help="Hash source videos into preview plan metadata (slower on large files).",
-        ),
-    ] = False,
+    frame: PreviewFrameOption = None,
+    stack_time: PreviewStackTimeOption = None,
+    render_max_width: PreviewRenderMaxWidthOption = 1600,
+    grid_step_px: PreviewGridStepOption = 400,
+    show_rulers: PreviewShowRulersOption = True,
+    show_crosshair: PreviewShowCrosshairOption = True,
+    alpha: PreviewAlphaOption = 0.25,
+    include_source_sha: PreviewSourceShaOption = False,
     non_interactive: Annotated[
         bool,
         typer.Option(
@@ -522,6 +531,7 @@ def preview(
             render_max_width=render_max_width,
             grid_step_px=grid_step_px,
             show_rulers=show_rulers,
+            show_crosshair=show_crosshair,
             alpha=alpha,
             dry_run=dry_run,
             include_source_sha=include_source_sha,
@@ -564,43 +574,14 @@ def curated_views_preview(
             "--clip-pattern", help="Pattern for source clips (default: {date}/8k/{clip}.mp4)"
         ),
     ] = "{date}/8k/{clip}.mp4",
-    frame: Annotated[
-        list[str] | None,
-        typer.Option(
-            "--frame",
-            help="Frame selector(s): start|mid|end, start+2.0/end-1.0, or absolute seconds.",
-        ),
-    ] = None,
-    stack_time: Annotated[
-        list[float] | None,
-        typer.Option(
-            "--stack-time",
-            help="Absolute seconds for stacked overlays (repeatable). Defaults to 0.",
-        ),
-    ] = None,
-    render_max_width: Annotated[
-        int,
-        typer.Option("--render-max-width", help="Maximum width (px) for extracted preview frames."),
-    ] = 1600,
-    grid_step_px: Annotated[
-        int,
-        typer.Option("--grid-step-px", help="Grid/ruler step in pixels. Set 0 to disable."),
-    ] = 400,
-    show_rulers: Annotated[
-        bool,
-        typer.Option("--show-rulers/--no-rulers", help="Render ruler ticks/labels on overlays."),
-    ] = True,
-    alpha: Annotated[
-        float,
-        typer.Option("--alpha", help="Overlay fill alpha in [0,1] for per-view contact cells."),
-    ] = 0.25,
-    include_source_sha: Annotated[
-        bool,
-        typer.Option(
-            "--source-sha/--no-source-sha",
-            help="Hash source videos into preview plan metadata (slower on large files).",
-        ),
-    ] = False,
+    frame: PreviewFrameOption = None,
+    stack_time: PreviewStackTimeOption = None,
+    render_max_width: PreviewRenderMaxWidthOption = 1600,
+    grid_step_px: PreviewGridStepOption = 400,
+    show_rulers: PreviewShowRulersOption = True,
+    show_crosshair: PreviewShowCrosshairOption = True,
+    alpha: PreviewAlphaOption = 0.25,
+    include_source_sha: PreviewSourceShaOption = False,
     non_interactive: Annotated[
         bool, typer.Option("--yes", "--no-input", help="Skip confirmation prompt")
     ] = False,
@@ -642,6 +623,7 @@ def curated_views_preview(
             render_max_width=render_max_width,
             grid_step_px=grid_step_px,
             show_rulers=show_rulers,
+            show_crosshair=show_crosshair,
             alpha=alpha,
             dry_run=dry_run,
             include_source_sha=include_source_sha,

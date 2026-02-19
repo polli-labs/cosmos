@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from cosmos.crop.rectcrop import RectCropSpec, build_rect_crop_filter
 from cosmos.preview.planner import (
+    _parse_rect_filter,
     build_view_preview,
     compute_rect_geometry,
     compute_square_geometry,
@@ -15,6 +17,15 @@ def test_compute_rect_geometry_reports_even_rounding() -> None:
     assert rect.w_px == 638
     assert rect.h_px == 358
     assert any("rounded down to even" in warning for warning in warnings)
+
+
+def test_parse_rect_filter_round_trip_with_crop_builder() -> None:
+    spec = RectCropSpec(x0=0.1, y0=0.2, w=0.333, h=0.444, normalized=True)
+    filter_string = build_rect_crop_filter(spec, 1920, 1080)
+    assert filter_string == "crop=638:478:192:216"
+
+    x_px, y_px, w_px, h_px = _parse_rect_filter(filter_string)
+    assert (x_px, y_px, w_px, h_px) == (192, 216, 638, 478)
 
 
 def test_compute_square_geometry_clamps_out_of_bounds_center() -> None:

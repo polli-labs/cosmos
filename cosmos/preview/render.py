@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -22,7 +23,14 @@ PALETTE: list[tuple[int, int, int]] = [
 ]
 
 
+@lru_cache(maxsize=1)
 def _font() -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
+    # Prefer a readable monospace TrueType font for diagnostics and fall back safely.
+    for candidate in ("DejaVuSansMono.ttf", "DejaVuSans.ttf"):
+        try:
+            return ImageFont.truetype(candidate, 14)
+        except OSError:
+            continue
     return ImageFont.load_default()
 
 
@@ -78,6 +86,29 @@ def _draw_text_box(draw: ImageDraw.ImageDraw, *, x: int, y: int, text: str) -> N
     draw.multiline_text((x, y), text, font=font, fill=(255, 255, 255, 240), spacing=2)
 
 
+def _rect_bounds(x: int, y: int, w: int, h: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    # PIL rectangle coordinates are inclusive on the bottom-right edge.
+    x1 = x + max(0, w - 1)
+    y1 = y + max(0, h - 1)
+    return (x, y), (x1, y1)
+
+
+def _draw_center_crosshair(
+    draw: ImageDraw.ImageDraw,
+    *,
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    color: tuple[int, int, int],
+) -> None:
+    cx = x + (w // 2)
+    cy = y + (h // 2)
+    arm = max(6, min(w, h) // 8)
+    draw.line([(cx - arm, cy), (cx + arm, cy)], fill=(color[0], color[1], color[2], 255), width=2)
+    draw.line([(cx, cy - arm), (cx, cy + arm)], fill=(color[0], color[1], color[2], 255), width=2)
+
+
 def _diagnostic_lines(
     view: ViewPreview, *, time_sec: float, selector: str, source_w: int, source_h: int
 ) -> str:
@@ -110,6 +141,7 @@ def render_view_cell(
     output_path: Path,
     grid_step_px: int,
     show_rulers: bool,
+    show_crosshair: bool,
     alpha: float,
     color: tuple[int, int, int],
 ) -> None:
@@ -130,11 +162,13 @@ def render_view_cell(
 
     fill_alpha = int(max(0.0, min(alpha, 1.0)) * 255)
     draw.rectangle(
-        [(x, y), (x + w, y + h)],
+        _rect_bounds(x, y, w, h),
         fill=(color[0], color[1], color[2], fill_alpha),
         outline=(color[0], color[1], color[2], 255),
         width=4,
     )
+    if show_crosshair:
+        _draw_center_crosshair(draw, x=x, y=y, w=w, h=h, color=color)
 
     draw.text((x + 6, max(4, y + 6)), view.view_id, font=_font(), fill=(255, 255, 255, 240))
     diagnostics = _diagnostic_lines(
@@ -206,17 +240,19 @@ def render_stacked_overlay(
             render_h=base.height,
         )
         draw.rectangle(
-            [(x, y), (x + w, y + h)],
+            _rect_bounds(x, y, w, h),
             outline=(color[0], color[1], color[2], 255),
             width=4,
         )
 
         label = str(idx)
+        badge_top = max(0, y - 16)
+        badge_bottom = min(base.height - 1, badge_top + 20)
         draw.rectangle(
-            [(x, y - 16), (x + 20, y + 4)],
+            [(x, badge_top), (x + 20, badge_bottom)],
             fill=(color[0], color[1], color[2], 220),
         )
-        draw.text((x + 5, y - 14), label, font=_font(), fill=(255, 255, 255, 240))
+        draw.text((x + 5, badge_top + 2), label, font=_font(), fill=(255, 255, 255, 240))
         legend_lines.append(f"{idx}: {view.view_id}")
 
     _draw_text_box(draw, x=12, y=12, text="\n".join(legend_lines))

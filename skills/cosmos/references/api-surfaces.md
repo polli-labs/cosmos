@@ -52,7 +52,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - `--spec --source-root --out [--clip-pattern]`
 - `cosmos crop preview`
   - jobs-based preview renderer (single clip or multi-clip)
-  - key flags: `--frame`, `--stack-time`, `--render-max-width`, `--grid-step-px`, `--show-rulers`, `--alpha`
+  - key flags: `--frame`, `--stack-time`, `--render-max-width`, `--grid-step-px`, `--show-rulers`, `--show-crosshair`, `--alpha`
 - `cosmos crop curated-views-preview`
   - curated-spec preview renderer grouped by source clip
   - key flags mirror `crop preview` and include `--spec --source-root --out [--clip-pattern]`

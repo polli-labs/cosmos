@@ -49,6 +49,7 @@ class RenderOptions:
     render_max_width: int = 1600
     grid_step_px: int = 400
     show_rulers: bool = True
+    show_crosshair: bool = True
     alpha: float = 0.25
     dry_run: bool = False
     include_source_sha: bool = False
@@ -217,6 +218,7 @@ def _render_clip(
                     output_path=cell_path,
                     grid_step_px=options.grid_step_px,
                     show_rulers=options.show_rulers,
+                    show_crosshair=options.show_crosshair,
                     alpha=options.alpha,
                     color=color,
                 )
@@ -294,6 +296,7 @@ def _generate(
             "render_max_width": options.render_max_width,
             "grid_step_px": options.grid_step_px,
             "show_rulers": options.show_rulers,
+            "show_crosshair": options.show_crosshair,
             "alpha": options.alpha,
         },
         ffmpeg=ffmpeg_version(),
@@ -321,7 +324,7 @@ def generate_preview_for_jobs(
 ) -> PreviewRunResult:
     groups: dict[Path, list[_VIEW_JOB]] = {}
     for video in input_videos:
-        groups[Path(video)] = [job for job in jobs]
+        groups[Path(video)] = list(jobs)
     if not groups:
         raise ValueError("at least one input video is required for preview")
     return _generate(groups=groups, out_dir=out_dir, options=options)
