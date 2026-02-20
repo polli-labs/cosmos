@@ -89,7 +89,10 @@ def _build_rect_crop_args(
         args += ["-ss", f"{start}"]
     args += ["-i", str(input_path)]
     if end is not None:
-        args += ["-to", f"{end}"]
+        # Use -t (duration) not -to (absolute timestamp) because -ss before -i
+        # resets the timestamp origin to 0, making -to equal to duration.
+        duration = end - (start or 0)
+        args += ["-t", f"{duration}"]
     args += [
         "-vf",
         crop_filter,

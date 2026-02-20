@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.4.1 — Fix rect crop trim duration (2026-02-20)
+- Fix: `_build_rect_crop_args` used `-to {end}` instead of `-t {duration}`, producing wrong output
+  duration when `start > 0`. With `-ss` before `-i`, ffmpeg resets the timestamp origin; `-to` was
+  treated as output-relative position, yielding clips longer than the requested trim window.
+  Aligns rect path with the already-correct square crop arg builder.
+
 ## 0.4.0 — Crop preview contact sheets + stacked overlays (2026-02-17)
 - Add non-interactive crop preview pipeline with layered architecture under `cosmos/preview/`:
   - planner (geometry + selector resolution),
