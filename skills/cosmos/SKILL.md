@@ -5,10 +5,10 @@ version: "0.1.0"
 x:
   source_repo: "cosmos"
   source_branch: "main"
-  source_commit: "261d5f1"
-  package_version: "0.4.0"
-  generator: "codex"
-  last_modified: "2026-02-19T00:00:00Z"
+  source_commit: "HEAD"
+  package_version: "0.4.1"
+  generator: "claude-code"
+  last_modified: "2026-02-20T00:00:00Z"
 ---
 
 # Cosmos
@@ -17,7 +17,7 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 
 ## Quick Facts
 
-- Version: 0.4.0
+- Version: 0.4.1
 - CLIs: `cosmos` and `squarecrop`
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob`
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
@@ -45,6 +45,41 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 - Keep provenance join key stable: `view.source.sha256 == clip.output.sha256`.
 - Use shared ffmpeg helpers in `cosmos/ffmpeg/*` instead of hardcoded `ffmpeg`/`ffprobe` commands.
 - Keep interactive prompts behind TTY-safe CLI boundaries (`--yes` and `--skip-ffmpeg-check` for non-interactive runs).
+
+## Contact Sheet Recipes
+
+Generate crop preview contact sheets for curated views:
+
+```bash
+cosmos crop curated-views-preview \
+  --spec /path/to/spec.json \
+  --source-root /path/to/source/root \
+  --out /path/to/output \
+  --clip-pattern "{date}/8k/{clip}.mp4" \
+  --frame start --frame mid --frame end \
+  --stack-time 0 \
+  --render-max-width 1920 \
+  --skip-ffmpeg-check --yes
+```
+
+- Frame selectors: `start`, `mid`, `end` for overview; `start+2.0`, `end-1.0` for trim-edge QA.
+- The `--clip-pattern` template interpolates `{date}` (ISO→filesystem, e.g. `2025-04-25`→`Apr25`) and `{clip}`.
+- Output layout: per-clip bundles with `sheets/sheet_frame_<sel>.png` (contact sheets), `stacked/stacked_t_<sec>.png` (all crops on one frame), `frames/` (raw keyframes), `sheets/_cells/` (individual crop overlays).
+
+Curated views spec JSON (schema `polli-curated-view-spec-v1`):
+```json
+{
+  "schema": "polli-curated-view-spec-v1",
+  "views": [{
+    "id": "CLIP18_0000-0020_southern-dogface_on_sage",
+    "source": {"clip": "CLIP18", "date": "2025-04-25"},
+    "trim": {"start_s": 0, "end_s": 20},
+    "crop_norm": {"x0": 0.0, "y0": 0.417, "w": 0.399, "h": 0.353},
+    "annotations": {"pollinators": [...], "plants": [...]},
+    "preprocess": {}
+  }]
+}
+```
 
 ## References
 
