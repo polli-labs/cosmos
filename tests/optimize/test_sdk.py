@@ -37,10 +37,14 @@ def test_optimize_dry_run_emits_plan_and_run_artifact(tmp_path: Path) -> None:
     assert payload["planned"][0]["output"] == str(expected_out)
 
 
-def test_optimize_auto_selects_transcode_with_transform_flags(tmp_path: Path) -> None:
+def test_optimize_auto_selects_transcode_with_transform_flags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     src = tmp_path / "clip.mp4"
     src.write_bytes(b"source")
     out_dir = tmp_path / "out"
+    monkeypatch.setattr(optimize_mod, "choose_encoder_for_video", lambda _p: ("libx264", "libx264"))
 
     optimize(
         [src],
