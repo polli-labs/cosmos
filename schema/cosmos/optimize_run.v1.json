@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/optimize_run.v1.json",
+  "title": "Cosmos Optimize Run (v1)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "optimize_run_id",
+    "tool",
+    "time",
+    "output_dir",
+    "options"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "optimize_run_id": { "type": "string" },
+    "tool": { "type": "string" },
+    "version": { "type": "string" },
+    "git": { "type": "string" },
+    "time": { "type": "string", "format": "date-time" },
+    "output_dir": { "type": "string" },
+    "ffmpeg": { "type": "object" },
+    "system": { "type": "object" },
+    "options": { "type": "object" },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "type": "string" },
+          "sha256": { "type": "string" },
+          "video": { "type": "object" }
+        }
+      }
+    }
+  }
+}

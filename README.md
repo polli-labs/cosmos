@@ -24,6 +24,7 @@ cosmos --help
 cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
+cosmos optimize run --help
 cosmos crop preview --help
 squarecrop --help
 ```
@@ -57,6 +58,11 @@ cosmos crop preview --input /path/to/clip.mp4 --jobs-file _work/job.json --out _
 make run.provenance DIR=_work/out
 ```
 
+6) Optimize outputs for web delivery (faststart remux by default)
+```
+cosmos optimize run --input /path/to/clip.mp4 --out-dir _work/web --yes
+```
+
 Jobs JSON fields for squarecrop:
 - `targets`: [1536] or multiple sizes
 - Offsets (recommended): `offset_x`, `offset_y` in [-1,1], relative to available margin (0=center; +right/down; −left/up)
@@ -68,6 +74,7 @@ Jobs JSON fields for squarecrop:
 ## IDs & provenance
 - Clip IDs: `clip-<stem>-<sha8>`; View IDs: `view-<stem>-<sha8>` (content-hash based, deterministic).
 - View provenance records offsets/centers, trim windows (seconds), target size, encoder used, and source clip id/sha.
+- Optimize provenance records transform mode/flags plus source/output hashes for rollback-safe workflows.
 - Video metadata (width_px/height_px/fps/duration_sec) is recorded in both clip and view artifacts; width/height are aliases for backward compatibility.
 
 ## SDK quickstart

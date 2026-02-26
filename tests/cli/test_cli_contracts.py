@@ -14,6 +14,7 @@ def test_root_help_exposes_process_and_hides_pipeline() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "process" in result.stdout
+    assert "optimize" in result.stdout
     assert "pipeline" not in result.stdout
 
 
@@ -79,6 +80,102 @@ def test_ingest_runtime_maps_to_ffmpeg_error_exit_code(monkeypatch, tmp_path: Pa
             str(input_dir),
             "--output-dir",
             str(output_dir),
+            "--yes",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "ffmpeg not found" in result.output
+
+
+def test_optimize_json_output_contract(monkeypatch, tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "cosmos.cli.optimize_cli.optimize",
+        lambda *_args, **_kwargs: [out_dir / "clip_optimized.mp4"],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+            "--dry-run",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "cosmos optimize run"
+    assert payload["count"] == 1
+    assert payload["outputs"] == [str(out_dir / "clip_optimized.mp4")]
+    assert payload["run_artifact"] == str(out_dir / "cosmos_optimize_run.v1.json")
+    assert payload["dry_run_plan"] == str(out_dir / "cosmos_optimize_dry_run.json")
+
+
+def test_optimize_remux_rejects_transform_flags(tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+            "--mode",
+            "remux",
+            "--target-height",
+            "1080",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "cannot be combined" in result.output
+
+
+def test_optimize_runtime_maps_to_ffmpeg_error_exit_code(monkeypatch, tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    def _raise_ffmpeg(*_args, **_kwargs):
+        raise RuntimeError("ffmpeg not found")
+
+    monkeypatch.setattr("cosmos.cli.optimize_cli.optimize", _raise_ffmpeg)
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
             "--yes",
         ],
     )

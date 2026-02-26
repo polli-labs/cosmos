@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from cosmos.ffmpeg.detect import resolve_ffmpeg_path
+from cosmos.ffmpeg.presets import build_encoder_settings
 
 
 def build_concat_encode_args(segments: list[Path], output: Path, *, encoder: str) -> list[str]:
@@ -58,4 +59,59 @@ def build_square_crop_args(
         "-an",
         str(output_path),
     ]
+    return args
+
+
+def build_optimize_remux_args(
+    input_path: Path,
+    output_path: Path,
+    *,
+    faststart: bool,
+) -> list[str]:
+    args: list[str] = [
+        resolve_ffmpeg_path(),
+        "-y",
+        "-i",
+        str(input_path),
+        "-map",
+        "0",
+        "-c",
+        "copy",
+    ]
+    if faststart:
+        args += ["-movflags", "faststart"]
+    args += [str(output_path)]
+    return args
+
+
+def build_optimize_transcode_args(
+    input_path: Path,
+    output_path: Path,
+    *,
+    encoder: str,
+    target_height: int | None,
+    fps: float | None,
+    crf: int | None,
+    faststart: bool,
+) -> list[str]:
+    args: list[str] = [
+        resolve_ffmpeg_path(),
+        "-y",
+        "-i",
+        str(input_path),
+    ]
+
+    filters: list[str] = []
+    if target_height is not None:
+        filters.append(f"scale=-2:{target_height}:flags=lanczos")
+    if fps is not None:
+        filters.append(f"fps={fps:g}")
+    if filters:
+        args += ["-vf", ",".join(filters)]
+
+    args += build_encoder_settings(encoder, mode="balanced", crf=crf)
+    args += ["-c:a", "copy"]
+    if faststart:
+        args += ["-movflags", "faststart"]
+    args += [str(output_path)]
     return args

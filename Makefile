@@ -55,6 +55,7 @@ squarecrop: ## Launch squarecrop CLI
 # Usage examples:
 #   make run.ingest IN=/path/raw OUT=/path/out YES=1 WINDOW=10
 #   make run.crop INPUT=/path/in.mp4 OUT=_work/out JOBS=_work/job.json YES=1
+#   make run.optimize INPUT=/path/in.mp4 OUT=_work/web YES=1 HEIGHT=1080 FPS=30 CRF=23
 
 .PHONY: run.ingest
 run.ingest: ## Run ingest: IN=/path INput dir, OUT=/path OUTput dir, optional YES=1, WINDOW=secs, CLIP=NAME (repeat via CLIPS="A B")
@@ -72,6 +73,19 @@ run.crop: ## Run squarecrop: INPUT=/path/in.mp4 OUT=/path/out JOBS=/path/jobs.js
 		$$([ -n "$(OUT)" ] && echo --out-dir "$(OUT)") \
 		$$([ -n "$(JOBS)" ] && echo --jobs-file "$(JOBS)") \
 		$$([ -n "$(YES)" ] && echo --yes) \
+		$$([ -n "$(DRY)" ] && echo --dry-run)
+
+.PHONY: run.optimize
+run.optimize: ## Run optimize: INPUT=/path/in.mp4 OUT=/path/out optional YES=1 DRY=1 MODE=auto|remux|transcode HEIGHT=1080 FPS=30 CRF=23 FORCE=1
+	$(ACT) && python -m cosmos.cli.optimize_cli run \
+		$$([ -n "$(INPUT)" ] && echo --input "$(INPUT)") \
+		$$([ -n "$(OUT)" ] && echo --out-dir "$(OUT)") \
+		$$([ -n "$(MODE)" ] && echo --mode "$(MODE)") \
+		$$([ -n "$(HEIGHT)" ] && echo --target-height "$(HEIGHT)") \
+		$$([ -n "$(FPS)" ] && echo --fps "$(FPS)") \
+		$$([ -n "$(CRF)" ] && echo --crf "$(CRF)") \
+		$$([ -n "$(YES)" ] && echo --yes) \
+		$$([ -n "$(FORCE)" ] && echo --force) \
 		$$([ -n "$(DRY)" ] && echo --dry-run)
 
 .PHONY: run.provenance

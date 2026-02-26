@@ -26,10 +26,22 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - run-level `cosmos_crop_preview_run.v1.json`
   - per-clip `preview_plan.v1.json` + image artifacts (`frames/`, `sheets/`, `stacked/`)
 
+### Optimize
+
+- `optimize(input_videos, out_dir, *, options) -> list[Path]`
+- `OptimizeOptions` supports:
+  - `mode`: `auto|remux|transcode`
+  - transform flags: `target_height`, `fps`, `crf`, optional forced `encoder`
+  - safety flags: `force`, `dry_run`, `faststart`, `suffix`
+- Optimize outputs emit:
+  - run-level `cosmos_optimize_run.v1.json`
+  - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
+  - dry-run plan `cosmos_optimize_dry_run.json`
+
 ### Provenance
 
 - Emitters:
-  - `emit_ingest_run`, `emit_clip_artifact`, `emit_crop_run`, `emit_crop_view`
+  - `emit_ingest_run`, `emit_clip_artifact`, `emit_crop_run`, `emit_crop_view`, `emit_optimize_run`, `emit_optimized_artifact`
 - Lookup helpers:
   - `find_clip_for_file`, `find_view_for_file`, `views_for_clip`, `map_artifacts_by_sha`
 
@@ -39,6 +51,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 - `cosmos ingest ...`
 - `cosmos crop ...`
+- `cosmos optimize ...`
 - `cosmos provenance ...`
 - `cosmos pipeline ...` (legacy convenience path)
 
@@ -56,6 +69,13 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 - `cosmos crop curated-views-preview`
   - curated-spec preview renderer grouped by source clip
   - key flags mirror `crop preview` and include `--spec --source-root --out [--clip-pattern]`
+
+### Optimize commands
+
+- `cosmos optimize run`
+  - modes: `--mode auto|remux|transcode`
+  - transforms: `--target-height`, `--fps`, `--crf`, `--encoder`
+  - safety/io: `--faststart`, `--suffix`, `--force`, `--yes`, `--dry-run`, `--json|--plain`
 
 ### Non-interactive safety
 

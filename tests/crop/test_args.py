@@ -1,6 +1,10 @@
 from pathlib import Path
 
-from cosmos.ffmpeg.args import build_square_crop_args
+from cosmos.ffmpeg.args import (
+    build_optimize_remux_args,
+    build_optimize_transcode_args,
+    build_square_crop_args,
+)
 
 
 def test_build_square_crop_args_with_times(tmp_path: Path) -> None:
@@ -14,3 +18,34 @@ def test_build_square_crop_args_with_times(tmp_path: Path) -> None:
     assert "-t 1.5" in joined
     assert "-vf crop=100:100:0:0" in joined
     assert str(out) in joined
+
+
+def test_build_optimize_remux_args_faststart(tmp_path: Path) -> None:
+    inp = tmp_path / "in.mp4"
+    out = tmp_path / "out.mp4"
+    args = build_optimize_remux_args(inp, out, faststart=True)
+    joined = " ".join(args)
+    assert "-map 0" in joined
+    assert "-c copy" in joined
+    assert "-movflags faststart" in joined
+    assert str(out) in joined
+
+
+def test_build_optimize_transcode_args_with_filters(tmp_path: Path) -> None:
+    inp = tmp_path / "in.mp4"
+    out = tmp_path / "out.mp4"
+    args = build_optimize_transcode_args(
+        inp,
+        out,
+        encoder="libx264",
+        target_height=1080,
+        fps=30.0,
+        crf=23,
+        faststart=True,
+    )
+    joined = " ".join(args)
+    assert "-vf scale=-2:1080:flags=lanczos,fps=30" in joined
+    assert "-c:v libx264" in joined
+    assert "-crf 23" in joined
+    assert "-c:a copy" in joined
+    assert "-movflags faststart" in joined

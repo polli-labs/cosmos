@@ -1,6 +1,6 @@
 # Cosmos SDK (Python)
 
-Cosmos exposes a small, stable SDK for programmatic ingest and cropping. This page covers the main entry points and options.
+Cosmos exposes a small, stable SDK for programmatic ingest, cropping, and optimization. This page covers the main entry points and options.
 
 ## Ingest API
 
@@ -103,6 +103,34 @@ Preview outputs
   - `frames/*.png`
   - `sheets/sheet_frame_<selector>.png`
   - `stacked/stacked_t_<time>.png`
+
+## Optimize API
+
+Function
+```python
+from pathlib import Path
+from cosmos.sdk.optimize import optimize, OptimizeOptions
+
+outputs = optimize(
+    input_videos=[Path("clip.mp4")],
+    out_dir=Path("./web"),
+    options=OptimizeOptions(
+        mode="auto",          # auto|remux|transcode
+        target_height=1080,   # optional
+        fps=30.0,             # optional
+        crf=23,               # optional (transcode)
+        faststart=True,
+        suffix="_optimized",
+        dry_run=False,
+    ),
+)
+```
+
+Notes
+- `mode="auto"` chooses remux unless transform flags imply transcode.
+- Run-level artifact: `cosmos_optimize_run.v1.json`.
+- Output artifact (non-dry-run): `*.mp4.cosmos_optimized.v1.json`.
+- `dry_run=True` writes `cosmos_optimize_dry_run.json` with planned ffmpeg commands.
 
 ## Error handling
 - Ingest raises `ValueError` if the input folder is missing.

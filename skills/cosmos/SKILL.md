@@ -8,7 +8,7 @@ x:
   source_commit: "HEAD"
   package_version: "0.4.1"
   generator: "claude-code"
-  last_modified: "2026-02-20T00:00:00Z"
+  last_modified: "2026-02-26T00:00:00Z"
 ---
 
 # Cosmos
@@ -19,8 +19,9 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 
 - Version: 0.4.1
 - CLIs: `cosmos` and `squarecrop`
-- SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob`
+- SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions`
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
+- Optimize support: `cosmos optimize run` (`auto|remux|transcode`) with run/artifact provenance (`cosmos_optimize_run.v1.json`, `*.cosmos_optimized.v1.json`)
 - Preview support: `cosmos crop preview` + `cosmos crop curated-views-preview` emitting `cosmos_crop_preview_run.v1.json` and per-clip `preview_plan.v1.json` bundles
 - ffmpeg resolution order: `COSMOS_FFMPEG` -> `~/.local/share/cosmos/bin/ffmpeg` -> system `PATH`
 

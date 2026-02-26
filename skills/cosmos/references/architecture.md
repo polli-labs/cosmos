@@ -10,6 +10,8 @@ Detailed module map for the current `cosmos` repo state.
   - ingest orchestrator and `IngestOptions`.
 - `cosmos/sdk/crop.py`
   - crop orchestrator for `CropJob` and `RectCropJob`.
+- `cosmos/sdk/optimize.py`
+  - optimize orchestrator and `OptimizeOptions` for remux/transcode workflows.
 - `cosmos/sdk/preview.py`
   - preview orchestrator wrappers and `RenderOptions`.
 - `cosmos/sdk/provenance.py`
@@ -49,16 +51,18 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/ffmpeg/bootstrap.py`
   - Linux NVENC-capable ffmpeg installer.
 - `cosmos/ffmpeg/args.py`
-  - ffmpeg arg builders used by crop/ingest paths.
+  - ffmpeg arg builders used by crop/optimize/ingest paths.
 - `cosmos/ffmpeg/presets.py`
   - encoder quality preset tables.
 
 - `cosmos/cli/cosmos_app.py`
-  - root CLI app (`ingest`, `crop`, `provenance`, `pipeline`).
+  - root CLI app (`ingest`, `crop`, `optimize`, `provenance`, `pipeline`).
 - `cosmos/cli/ingest_cli.py`
   - ingest run command + non-interactive flags.
 - `cosmos/cli/crop_cli.py`
   - crop run + curated-views + preview command surfaces.
+- `cosmos/cli/optimize_cli.py`
+  - optimize run command (`auto|remux|transcode`) with machine-output contracts.
 - `cosmos/cli/provenance_cli.py`
   - provenance lookup helpers.
 
@@ -67,10 +71,12 @@ Detailed module map for the current `cosmos` repo state.
 - Run-level files:
   - `cosmos_ingest_run.v1.json`
   - `cosmos_crop_run.v1.json`
+  - `cosmos_optimize_run.v1.json`
   - `cosmos_crop_preview_run.v1.json`
 - Artifact-level files:
   - `*.mp4.cosmos_clip.v1.json`
   - `*.mp4.cosmos_view.v1.json`
+  - `*.mp4.cosmos_optimized.v1.json`
   - `preview_<clip>_<hash>/preview_plan.v1.json`
 
 Join key stability requirement:
