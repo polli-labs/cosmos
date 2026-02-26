@@ -94,10 +94,13 @@ def test_ensure_ffmpeg_available_rejects_non_executable_binary(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    import cosmos.ffmpeg.detect as detect_mod  # late import for monkeypatching
+
     fake = tmp_path / "ffmpeg"
     fake.write_text("#!/bin/sh\necho no\n")
-    fake.chmod(0o644)
+    fake.chmod(0o755)
     monkeypatch.setenv("COSMOS_FFMPEG", str(fake))
+    monkeypatch.setattr(detect_mod.os, "access", lambda _path, _mode: False)
     with pytest.raises(RuntimeError, match="not executable"):
         ensure_ffmpeg_available()
 
