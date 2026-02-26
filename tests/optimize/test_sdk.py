@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 
 import pytest
 from cosmos.sdk.optimize import OptimizeOptions, optimize
+
+optimize_mod = importlib.import_module("cosmos.sdk.optimize")
+
+
+@pytest.fixture(autouse=True)
+def _mock_ffmpeg_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(optimize_mod, "ensure_ffmpeg_available", lambda: None)
 
 
 def test_optimize_dry_run_emits_plan_and_run_artifact(tmp_path: Path) -> None:
@@ -15,7 +23,7 @@ def test_optimize_dry_run_emits_plan_and_run_artifact(tmp_path: Path) -> None:
     outputs = optimize(
         [src],
         out_dir,
-        options=OptimizeOptions(dry_run=True, skip_ffmpeg_check=True),
+        options=OptimizeOptions(dry_run=True),
     )
 
     expected_out = out_dir / "clip_optimized.mp4"
@@ -38,7 +46,6 @@ def test_optimize_auto_selects_transcode_with_transform_flags(tmp_path: Path) ->
         out_dir,
         options=OptimizeOptions(
             dry_run=True,
-            skip_ffmpeg_check=True,
             target_height=1080,
             fps=30.0,
         ),
@@ -64,5 +71,5 @@ def test_optimize_requires_force_for_existing_outputs(tmp_path: Path) -> None:
         optimize(
             [src],
             out_dir,
-            options=OptimizeOptions(dry_run=True, skip_ffmpeg_check=True),
+            options=OptimizeOptions(dry_run=True),
         )

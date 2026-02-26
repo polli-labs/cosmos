@@ -178,7 +178,6 @@ def run(
             suffix=suffix,
             force=force,
             dry_run=dry_run,
-            skip_ffmpeg_check=skip_ffmpeg_check,
         )
         results = optimize(resolved_inputs, resolved_out_dir, options=options)
     except Exception as exc:  # noqa: BLE001

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from cosmos.cli.cosmos_app import app
 from cosmos.preview.pipeline import PreviewRunResult
 from typer.testing import CliRunner
 
+optimize_mod = importlib.import_module("cosmos.sdk.optimize")
 runner = CliRunner()
 
 
@@ -181,6 +183,47 @@ def test_optimize_runtime_maps_to_ffmpeg_error_exit_code(monkeypatch, tmp_path: 
     )
     assert result.exit_code == 4
     assert "ffmpeg not found" in result.output
+
+
+def test_optimize_skip_ffmpeg_check_only_suppresses_bootstrap_prompt(
+    monkeypatch, tmp_path: Path
+) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    prompt_calls: list[dict[str, object]] = []
+
+    def _capture_prompt(**kwargs: object) -> None:
+        prompt_calls.append(kwargs)
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        _capture_prompt,
+    )
+
+    def _raise_ffmpeg_missing() -> None:
+        raise RuntimeError("ffmpeg not found")
+
+    monkeypatch.setattr(optimize_mod, "ensure_ffmpeg_available", _raise_ffmpeg_missing)
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+            "--dry-run",
+            "--skip-ffmpeg-check",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "ffmpeg not found" in result.output
+    assert prompt_calls == [{"interactive": False}]
 
 
 def test_crop_run_non_interactive_requires_out_dir(tmp_path: Path) -> None:

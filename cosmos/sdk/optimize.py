@@ -30,7 +30,6 @@ class OptimizeOptions:
     suffix: str = "_optimized"
     force: bool = False
     dry_run: bool = False
-    skip_ffmpeg_check: bool = False
 
 
 def _normalize_mode(mode: str) -> OptimizeMode:
@@ -101,8 +100,7 @@ def optimize(
             raise FileNotFoundError(f"Input video not found: {src}")
 
     ensure_dir(out_dir)
-    if not options.skip_ffmpeg_check:
-        ensure_ffmpeg_available()
+    ensure_ffmpeg_available()
 
     run_options = {
         "mode": mode,
