@@ -128,6 +128,7 @@ outputs = optimize(
 
 Notes
 - `mode="auto"` chooses remux unless transform flags imply transcode.
+- auto-selected hardware encoders are runtime-probed and will fall back to `libx264` when unavailable.
 - Run-level artifact: `cosmos_optimize_run.v1.json`.
 - Output artifact (non-dry-run): `*.mp4.cosmos_optimized.v1.json`.
 - `dry_run=True` writes `cosmos_optimize_dry_run.json` with planned ffmpeg commands.

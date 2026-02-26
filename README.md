@@ -115,4 +115,5 @@ produced = ingest(inputs, outputs, manifest=None, options=opts)
 - Windows: `h264_nvenc` > `h264_qsv` > `h264_amf` > `libx264`
 
 Presets are centralized; filter graphs are CPU‑bound (crop/hstack/vstack/scale). Use `--scale-filter` and thread flags to tune throughput and memory.
+Auto-selected hardware encoders are runtime-probed on real inputs; Cosmos falls back to `libx264` if the host advertises a hardware encoder that is not actually usable.
 Detailed platform behavior and known limits are tracked in `docs/encoder-behavior.md`.

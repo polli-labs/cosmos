@@ -45,6 +45,9 @@ Optimize command
 - Artifacts:
   - run-level `cosmos_optimize_run.v1.json`
   - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
+- Encoder resilience:
+  - auto mode now performs a runtime viability probe for hardware encoders and falls back to `libx264` when drivers/runtime support are missing.
+  - if an explicit `--encoder` is provided, Cosmos treats it as authoritative and surfaces the ffmpeg failure instead of silently switching encoders.
 
 Process command
 - `cosmos process` is the canonical ingest -> optional crop workflow command.

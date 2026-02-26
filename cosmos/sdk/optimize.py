@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,7 @@ from cosmos.sdk.provenance import (
 from cosmos.utils.io import ensure_dir
 
 OptimizeMode = Literal["auto", "remux", "transcode"]
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -85,6 +87,99 @@ def _output_for(source: Path, out_dir: Path, suffix: str) -> Path:
     return out_dir / f"{stem}{suffix}.mp4"
 
 
+def _build_transcode_command(
+    src: Path,
+    out_path: Path,
+    *,
+    options: OptimizeOptions,
+    encoder: str,
+) -> list[str]:
+    return build_optimize_transcode_args(
+        src,
+        out_path,
+        encoder=encoder,
+        target_height=options.target_height,
+        fps=options.fps,
+        crf=options.crf,
+        faststart=options.faststart,
+    )
+
+
+def _plan_input(
+    src: Path,
+    out_dir: Path,
+    *,
+    mode: OptimizeMode,
+    options: OptimizeOptions,
+) -> tuple[
+    Path,
+    Literal["remux", "transcode"],
+    list[str],
+    dict[str, object] | None,
+    str | None,
+]:
+    resolved_mode = _resolve_mode_for_input(mode, options)
+    out_path = _output_for(src, out_dir, options.suffix)
+    if out_path.exists() and not options.force:
+        raise FileExistsError(
+            f"Output already exists: {out_path} (use --force to overwrite existing files)"
+        )
+
+    if resolved_mode == "remux":
+        cmd = build_optimize_remux_args(src, out_path, faststart=options.faststart)
+        return out_path, resolved_mode, cmd, {"impl": "copy", "codec": "copy"}, None
+
+    if options.encoder is not None:
+        selected_encoder = options.encoder
+        attempted_encoder = options.encoder
+    else:
+        selected_encoder, attempted_encoder = choose_encoder_for_video(src)
+    cmd = _build_transcode_command(src, out_path, options=options, encoder=selected_encoder)
+    encode_info: dict[str, object] = {
+        "impl": selected_encoder,
+        "codec": selected_encoder,
+        "crf": options.crf,
+    }
+    if attempted_encoder != selected_encoder:
+        encode_info["hardware_attempted"] = attempted_encoder
+    return out_path, resolved_mode, cmd, encode_info, attempted_encoder
+
+
+def _run_with_optional_fallback(
+    *,
+    src: Path,
+    out_path: Path,
+    options: OptimizeOptions,
+    resolved_mode: Literal["remux", "transcode"],
+    cmd: list[str],
+    encode_info: dict[str, object] | None,
+    attempted_encoder: str | None,
+) -> dict[str, object] | None:
+    try:
+        subprocess.run(cmd, check=True)  # noqa: S603
+        return encode_info
+    except subprocess.CalledProcessError as exc:
+        # Preserve explicit user-selected encoder behavior; only auto-selection
+        # gets an automatic fallback to software x264.
+        if (
+            resolved_mode != "transcode"
+            or options.encoder is not None
+            or attempted_encoder in {None, "libx264"}
+        ):
+            raise
+        logger.warning(
+            "hardware encoder %s failed (%s); retrying with libx264", attempted_encoder, exc
+        )
+        fallback_cmd = _build_transcode_command(src, out_path, options=options, encoder="libx264")
+        subprocess.run(fallback_cmd, check=True)  # noqa: S603
+        return {
+            "impl": "libx264",
+            "codec": "libx264",
+            "crf": options.crf,
+            "hardware_attempted": attempted_encoder,
+        }
+
+
 def optimize(
     input_videos: list[Path],
     out_dir: Path,
@@ -130,36 +225,12 @@ def optimize(
     outputs: list[Path] = []
     plan_entries: list[dict[str, object]] = []
     for src in input_videos:
-        resolved_mode = _resolve_mode_for_input(mode, options)
-        out_path = _output_for(src, out_dir, options.suffix)
-        if out_path.exists() and not options.force:
-            raise FileExistsError(
-                f"Output already exists: {out_path} (use --force to overwrite existing files)"
-            )
-
-        if resolved_mode == "remux":
-            cmd = build_optimize_remux_args(
-                src,
-                out_path,
-                faststart=options.faststart,
-            )
-            encode_info: dict[str, object] | None = {"impl": "copy", "codec": "copy"}
-        else:
-            resolved_encoder = options.encoder or choose_encoder_for_video(src)[0]
-            cmd = build_optimize_transcode_args(
-                src,
-                out_path,
-                encoder=resolved_encoder,
-                target_height=options.target_height,
-                fps=options.fps,
-                crf=options.crf,
-                faststart=options.faststart,
-            )
-            encode_info = {
-                "impl": resolved_encoder,
-                "codec": resolved_encoder,
-                "crf": options.crf,
-            }
+        out_path, resolved_mode, cmd, encode_info, attempted_encoder = _plan_input(
+            src,
+            out_dir,
+            mode=mode,
+            options=options,
+        )
 
         transform: dict[str, object] = {
             "mode": resolved_mode,
@@ -181,7 +252,15 @@ def optimize(
             )
         else:
             out_path.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(cmd, check=True)  # noqa: S603
+            encode_info = _run_with_optional_fallback(
+                src=src,
+                out_path=out_path,
+                options=options,
+                resolved_mode=resolved_mode,
+                cmd=cmd,
+                encode_info=encode_info,
+                attempted_encoder=attempted_encoder,
+            )
             emit_optimized_artifact(
                 optimize_run_id=optimize_run_id,
                 mode=resolved_mode,

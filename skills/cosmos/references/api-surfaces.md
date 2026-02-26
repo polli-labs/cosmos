@@ -37,6 +37,9 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - run-level `cosmos_optimize_run.v1.json`
   - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
   - dry-run plan `cosmos_optimize_dry_run.json`
+- Encoder behavior:
+  - auto-selected hardware encoders are runtime-probed and degrade to `libx264` when unavailable.
+  - explicitly forced encoders are treated as strict and fail fast on ffmpeg errors.
 
 ### Provenance
 

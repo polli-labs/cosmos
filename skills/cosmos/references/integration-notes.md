@@ -31,6 +31,7 @@ Any changes in these areas require skill freshness review:
 - CLI flags/subcommands/help text
 - SDK function signatures and option models
 - ffmpeg bootstrap/detection behavior
+- encoder runtime-probe/fallback behavior (Linux/Windows hardware paths)
 - provenance schema or emitted field sets
 - crop semantics (square offsets, rect coords, naming)
 - preview bundle/plan schema or render contract behavior

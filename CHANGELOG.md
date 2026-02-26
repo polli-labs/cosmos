@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.5.0 — Optimize command + provenance + cross-platform encoder hardening (2026-02-26)
+- Add `cosmos optimize run` CLI and SDK support (`OptimizeOptions`, `optimize`) for web-ready MP4 transforms with `auto|remux|transcode` modes.
+- Add optimize provenance contracts:
+  - run-level `cosmos_optimize_run.v1.json`
+  - artifact-level `*.mp4.cosmos_optimized.v1.json`
+  - published schemas under both `schema/cosmos/` and `docs/schemas/`.
+- Add optimize command/API/docs/skill references and contract tests for JSON output, validation, and failure mapping.
+- Harden encoder behavior for Linux/Windows/macOS:
+  - runtime-probe auto-selected hardware encoders on real inputs and fall back to `libx264` when unavailable (for example, advertised NVENC without working driver/runtime).
+  - preserve strict behavior for explicitly forced encoders (`--encoder`), surfacing ffmpeg failures instead of silently switching implementations.
+
 ## 0.4.1 — Fix rect crop trim duration (2026-02-20)
 - Fix: `_build_rect_crop_args` used `-to {end}` instead of `-t {duration}`, producing wrong output
   duration when `start > 0`. With `-ss` before `-i`, ffmpeg resets the timestamp origin; `-to` was

@@ -24,6 +24,7 @@ Run this ritual when any of the following happens:
    - `. .venv/bin/activate && cosmos --help`
    - `. .venv/bin/activate && cosmos ingest run --help`
    - `. .venv/bin/activate && cosmos crop run --help`
+   - `. .venv/bin/activate && cosmos optimize run --help`
 4. Run quality gate:
    - `make fmt && make lint && make typecheck && make test`
 5. Post receipts to the standing Linear issue (template below).

@@ -7,7 +7,10 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from cosmos.ffmpeg.presets import build_encoder_settings
+
 logger = logging.getLogger(__name__)
+_ENCODER_RUNTIME_CACHE: dict[tuple[str, str, str], bool] = {}
 
 FFPROBE_DIM_CMD = [
     "-v",
@@ -64,6 +67,13 @@ def resolve_ffprobe_path() -> str:
 def ensure_ffmpeg_available() -> None:
     """Raise if no ffmpeg can be found via the standard lookup order."""
     ff = resolve_ffmpeg_path()
+    if ff != "ffmpeg":
+        ff_path = Path(ff).expanduser()
+        if not ff_path.exists():
+            raise RuntimeError(f"ffmpeg binary not found: {ff_path}")
+        if not os.access(ff_path, os.X_OK):
+            raise RuntimeError(f"ffmpeg binary is not executable: {ff_path}")
+        return
     if ff == "ffmpeg" and shutil.which("ffmpeg") is None:
         hint = ""
         if platform.system().lower() == "darwin":
@@ -223,6 +233,59 @@ def _hevc_supported() -> bool:
         return False
 
 
+def _encoder_runtime_usable(input_path: Path, encoder: str) -> bool:
+    """Best-effort runtime probe for an encoder against a real input video.
+
+    This catches cases where encoder names appear in `ffmpeg -encoders` but fail
+    at runtime due to missing drivers/libraries (common on Linux/Windows hosts).
+    """
+    if encoder == "libx264":
+        return True
+
+    ff = resolve_ffmpeg_path()
+    sys = platform.system().lower()
+    cache_key = (ff, sys, encoder)
+    cached = _ENCODER_RUNTIME_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+
+    null_sink = "NUL" if sys == "windows" else "/dev/null"
+    if encoder in {"h264_nvenc", "h264_videotoolbox", "h264_qsv", "h264_amf", "libx264"}:
+        encoder_args = build_encoder_settings(encoder, mode="balanced", crf=23)
+    else:
+        # Unknown encoders (for example h264_vaapi) still get a direct probe.
+        encoder_args = ["-c:v", encoder]
+    # Keep this probe short and side-effect free by emitting a single encoded
+    # frame to a null muxer.
+    cmd = [
+        ff,
+        "-v",
+        "error",
+        "-y",
+        "-i",
+        str(input_path),
+        "-frames:v",
+        "1",
+        *encoder_args,
+        "-f",
+        "null",
+        null_sink,
+    ]
+    try:
+        subprocess.run(cmd, check=True, capture_output=True, text=True)  # noqa: S603
+        _ENCODER_RUNTIME_CACHE[cache_key] = True
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Encoder %s unavailable at runtime for %s; falling back to libx264 (%s)",
+            encoder,
+            input_path,
+            exc,
+        )
+        _ENCODER_RUNTIME_CACHE[cache_key] = False
+        return False
+
+
 def choose_encoder_for_video(input_path: Path, *, prefer_hevc_hw: bool = False) -> tuple[str, str]:
     """Pick encoder and return (encoder_used, encoder_attempted).
 
@@ -236,7 +299,9 @@ def choose_encoder_for_video(input_path: Path, *, prefer_hevc_hw: bool = False) 
     if sys == "darwin":
         w, h = _probe_dimensions(input_path)
         if prefer_hevc_hw and _hevc_supported():
-            return "hevc_videotoolbox", "hevc_videotoolbox"
+            if _encoder_runtime_usable(input_path, "hevc_videotoolbox"):
+                return "hevc_videotoolbox", "hevc_videotoolbox"
+            return "libx264", "hevc_videotoolbox"
         if candidate == "h264_videotoolbox" and _is_over_videotoolbox_h264_limit(w, h):
             logging.getLogger(__name__).warning(
                 "VideoToolbox H.264 not used: input %s is %sx%s (>4K). "
@@ -246,4 +311,6 @@ def choose_encoder_for_video(input_path: Path, *, prefer_hevc_hw: bool = False) 
                 h,
             )
             return "libx264", attempted
+    if not _encoder_runtime_usable(input_path, candidate):
+        return "libx264", attempted
     return candidate, attempted
