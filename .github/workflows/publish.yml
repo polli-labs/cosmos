@@ -51,9 +51,9 @@ jobs:
       - name: Install build tools
         run: |
           python -m pip install -U pip
-          pip install hatchling hatch twine build
+          pip install build twine
       - name: Build wheel
-        run: hatch build -t wheel
+        run: python -m build --wheel
       - name: Publish to TestPyPI
         if: startsWith(github.ref, 'refs/tags/v')
         continue-on-error: true  # do not block PyPI publish if TestPyPI creds/env unavailable
