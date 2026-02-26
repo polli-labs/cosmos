@@ -11,6 +11,7 @@ class Encoder(str, Enum):
     NVENC = "h264_nvenc"
     QSV = "h264_qsv"
     AMF = "h264_amf"
+    VAAPI = "h264_vaapi"
     X264 = "libx264"
 
 
@@ -64,6 +65,9 @@ def build_encoder_settings(
             "-qp_p",
             str(crf_val),
         ]
+    if encoder == Encoder.VAAPI.value:
+        # VAAPI quality control is commonly expressed as constant quantizer.
+        return ["-c:v", Encoder.VAAPI.value, "-qp", str(crf_val)]
     # libx264 default
     args = [
         "-c:v",

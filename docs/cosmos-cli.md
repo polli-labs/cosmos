@@ -7,6 +7,7 @@ cosmos --help
 cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
+cosmos optimize run --help
 cosmos crop preview --help
 cosmos crop curated-views-preview --help
 ```
@@ -29,6 +30,24 @@ Output modes
   - `--json`: structured machine output to `stdout`
   - `--plain`: stable line-based output to `stdout`
 - Diagnostics, warnings, and deprecation notices are written to `stderr`.
+
+Optimize command
+- `cosmos optimize run` is the canonical web-readiness command for existing MP4 outputs.
+- Modes:
+  - `auto` (default): remux unless transform flags imply transcode
+  - `remux`: stream copy + optional faststart atom relocation
+  - `transcode`: re-encode with optional `--target-height`, `--fps`, `--crf`
+- Key flags:
+  - `--input` (repeatable), `--out-dir`, `--mode`
+  - `--target-height`, `--fps`, `--crf`, `--encoder` (transcode path)
+  - `--faststart/--no-faststart`, `--suffix`, `--force`
+  - `--yes/--no-input`, `--dry-run`, `--skip-ffmpeg-check`, `--json|--plain`
+- Artifacts:
+  - run-level `cosmos_optimize_run.v1.json`
+  - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
+- Encoder resilience:
+  - auto mode now performs a runtime viability probe for hardware encoders and falls back to `libx264` when drivers/runtime support are missing.
+  - if an explicit `--encoder` is provided, Cosmos treats it as authoritative and surfaces the ffmpeg failure instead of silently switching encoders.
 
 Process command
 - `cosmos process` is the canonical ingest -> optional crop workflow command.
