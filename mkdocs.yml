@@ -2,38 +2,49 @@ site_name: Cosmos
 site_url: https://docs.polli.ai/cosmos
 repo_url: https://github.com/polli-labs/cosmos
 repo_name: polli-labs/cosmos
+
 theme:
   name: material
+  custom_dir: docs/theme/overrides
   features:
+    - content.code.copy
+    - content.tabs.link
     - navigation.sections
     - navigation.top
   logo: https://assets.polli.ai/docs-brand/latest/wordmarks/cosmos.svg
   logo_dark: https://assets.polli.ai/docs-brand/latest/wordmarks/cosmos.svg
+
 extra_css:
   - https://assets.polli.ai/docs-brand/latest/polli-brand.css
 extra_javascript:
   - https://assets.polli.ai/docs-brand/latest/polli-brand.js
+
 nav:
   - Home: index.md
-  - Provenance: provenance.md
-  - Ingest:
-      - User Guide: ingest-user-guide.md
-      - CLI Reference: ingest-reference.md
+  - Start Here:
+      - Ingest User Guide: ingest-user-guide.md
+      - Squarecrop User Guide: squarecrop-user-guide.md
       - Input Structure: input-structure.md
-  - Squarecrop:
-      - User Guide: squarecrop-user-guide.md
-      - CLI Reference: squarecrop-reference.md
   - CLI:
       - cosmos CLI: cosmos-cli.md
       - squarecrop CLI: squarecrop-cli.md
+      - ingest run flags (legacy reference): ingest-reference.md
+      - squarecrop flags (legacy reference): squarecrop-reference.md
   - SDK: sdk.md
-  - Schemas:
+  - Provenance: provenance.md
+  - Reference:
+      - Encoder Behavior: encoder-behavior.md
       - ingest_run.v1.json: schemas/ingest_run.v1.json
       - clip.v1.json: schemas/clip.v1.json
       - crop_run.v1.json: schemas/crop_run.v1.json
       - view.v1.json: schemas/view.v1.json
+      - optimize_run.v1.json: schemas/optimize_run.v1.json
+      - optimized.v1.json: schemas/optimized.v1.json
       - crop_preview_run.v1.json: schemas/crop_preview_run.v1.json
       - crop_preview_plan.v1.json: schemas/crop_preview_plan.v1.json
+  - Agents:
+      - Cosmos Skill: agent-skill.md
+
 plugins:
   - search
   - mkdocstrings:
@@ -42,6 +53,14 @@ plugins:
           options:
             docstring_style: google
             show_source: false
+
 markdown_extensions:
-  - tables
   - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true

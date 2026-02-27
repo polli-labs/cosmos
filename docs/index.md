@@ -1,21 +1,75 @@
-# Cosmos Docs
+# Cosmos Documentation
 
-Welcome to Cosmos — a unified toolkit for ingesting COSM camera data and performing square‑crop post‑processing. This documentation is written for non‑technical users and includes a developer‑friendly SDK section.
+Cosmos is Polli's media processing toolkit for COSM camera data.
+It is designed to be safe for both humans and automation:
 
-Getting started
-- Ingest user guide: ingest-user-guide.md
-- Squarecrop user guide: squarecrop-user-guide.md
-- Input structure (what your camera folders should look like): input-structure.md
+- two CLIs (`cosmos`, `squarecrop`)
+- one SDK (`cosmos.sdk.*`)
+- deterministic provenance artifacts for every real output
 
-Command reference
-- Ingest CLI reference: ingest-reference.md
-- Squarecrop CLI reference: squarecrop-reference.md
+## Start with the workflow you need
 
-Developers
-- SDK overview and examples: sdk.md
-- Local runs with uv + make: see README (Local runs)
-- Encoder behavior matrix and platform notes: encoder-behavior.md
+### Ingest raw camera output into MP4 clips
 
-Quick links
-- cosmos-cli quickstart: cosmos-cli.md
-- squarecrop-cli quickstart: squarecrop-cli.md
+- Read: [Ingest User Guide](ingest-user-guide.md)
+- Validate source layout: [Input Structure](input-structure.md)
+- Command reference: [cosmos CLI](cosmos-cli.md)
+
+### Create square/rect views and visual QA previews
+
+- Read: [Squarecrop User Guide](squarecrop-user-guide.md)
+- Commands: [squarecrop CLI](squarecrop-cli.md)
+- Preview output contracts: [Provenance](provenance.md)
+
+### Optimize existing MP4s for web delivery
+
+Use `cosmos optimize run` when you need `faststart` relocation,
+optional transcode transforms, and reproducible optimize provenance.
+
+- Command details: [cosmos CLI](cosmos-cli.md)
+- Encoder fallback policy: [Encoder Behavior](encoder-behavior.md)
+
+## Canonical command quickstart
+
+```bash
+cosmos --help
+cosmos ingest run --help
+cosmos crop run --help
+cosmos optimize run --help
+cosmos crop preview --help
+squarecrop --help
+```
+
+## Provenance is a first-class contract
+
+Cosmos writes run-level and artifact-level JSON sidecars so downstream systems can audit
+exactly how each file was produced.
+
+- Overview and join keys: [Provenance](provenance.md)
+- Schemas: see the [Reference](#reference-map) section below
+
+## Agent-friendly usage (Cosmos skill)
+
+The canonical Cosmos skill package is versioned in-repo and should be used when planning
+or shipping CLI/SDK/provenance changes.
+
+- Skill entrypoint: [`skills/cosmos/SKILL.md`](https://github.com/polli-labs/cosmos/blob/main/skills/cosmos/SKILL.md)
+- API surface reference: [`skills/cosmos/references/api-surfaces.md`](https://github.com/polli-labs/cosmos/blob/main/skills/cosmos/references/api-surfaces.md)
+- Maintenance ritual: [`skills/cosmos/references/maintenance-ritual.md`](https://github.com/polli-labs/cosmos/blob/main/skills/cosmos/references/maintenance-ritual.md)
+
+For a docs-local summary, see [Cosmos Skill](agent-skill.md).
+
+## Reference map
+
+- CLI references: [cosmos CLI](cosmos-cli.md), [squarecrop CLI](squarecrop-cli.md)
+- SDK API entry points: [SDK](sdk.md)
+- Platform encoder behavior: [Encoder Behavior](encoder-behavior.md)
+- Schemas:
+  - [ingest_run.v1.json](schemas/ingest_run.v1.json)
+  - [clip.v1.json](schemas/clip.v1.json)
+  - [crop_run.v1.json](schemas/crop_run.v1.json)
+  - [view.v1.json](schemas/view.v1.json)
+  - [optimize_run.v1.json](schemas/optimize_run.v1.json)
+  - [optimized.v1.json](schemas/optimized.v1.json)
+  - [crop_preview_run.v1.json](schemas/crop_preview_run.v1.json)
+  - [crop_preview_plan.v1.json](schemas/crop_preview_plan.v1.json)
