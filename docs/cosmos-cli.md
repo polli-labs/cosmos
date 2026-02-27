@@ -1,71 +1,100 @@
-# cosmos CLI
+# cosmos CLI Reference
 
-Quick start
+`cosmos` is the primary CLI for ingest, crop, optimize, preview, and provenance helpers.
 
-```
-cosmos --help
-cosmos process --help
+## Command map
+
+- `cosmos ingest run`: process camera inputs into MP4 clips
+- `cosmos crop run`: crop existing MP4s (square and rect modes)
+- `cosmos crop preview`: generate contact-sheet and stacked-overlay previews
+- `cosmos crop curated-views`: execute curated-view specs
+- `cosmos crop curated-views-preview`: preview curated-view specs
+- `cosmos optimize run`: remux/transcode MP4s for web delivery
+- `cosmos provenance ...`: lookup/hash helpers for produced artifacts
+
+Legacy alias:
+
+- `cosmos process` remains available for compatibility workflows.
+
+## Global behavior contracts
+
+- Ensure `ffmpeg` is available (`COSMOS_FFMPEG` override is supported).
+- Automation-safe output modes:
+  - `--json`: structured payload to stdout
+  - `--plain`: line-oriented payload to stdout
+- Diagnostics and warnings are emitted to stderr.
+- `--yes` suppresses interactive prompts for non-TTY automation.
+- `--dry-run` generates plans/commands without running ffmpeg.
+
+## Ingest quick references
+
+```bash
 cosmos ingest run --help
-cosmos crop run --help
-cosmos optimize run --help
-cosmos crop preview --help
-cosmos crop curated-views-preview --help
+cosmos ingest run --input-dir /path/in --output-dir /path/out --yes
+cosmos ingest run --input-dir /path/in --output-dir /path/out --clip CLIP1 --clip CLIP2 --yes
+cosmos ingest run --input-dir /path/in --output-dir /path/out --dry-run --yes
 ```
 
-Notes
-- Ensure `ffmpeg` is installed and available on PATH.
-- On macOS, Homebrew: `brew install ffmpeg`. On Ubuntu: `sudo apt-get install ffmpeg`.
-- Generated outputs are written in the specified output directory.
+Manifest behavior:
 
-Manifest discovery and validation
-- If you do not pass `--manifest`, `cosmos ingest` will search the `input_dir` for a single `*.xml` manifest (same pattern as the original tool). If found, it parses clips and validates segments using `meta.json` files.
-- System checks validate FFmpeg presence and basic output directory permissions.
-- When a manifest is not found, ingest falls back to discovered `.mp4` files for convenience.
+- If `--manifest` is omitted, Cosmos searches `input_dir` for a single `*.xml` manifest.
+- If no manifest is found, ingest can fall back to discovered `.mp4` files for convenience.
 
-Dry runs
-- Add `--dry-run` to `cosmos ingest run` or `cosmos pipeline` to build commands without executing FFmpeg. Outputs are simulated so downstream steps can proceed.
+## Crop quick references
 
-Output modes
-- Commands that produce result lists now support:
-  - `--json`: structured machine output to `stdout`
-  - `--plain`: stable line-based output to `stdout`
-- Diagnostics, warnings, and deprecation notices are written to `stderr`.
+```bash
+cosmos crop run --help
+cosmos crop run --input clip.mp4 --out-dir ./out --size 1080 --offset-x 0.1 --offset-y 0 --yes
+cosmos crop run --input clip.mp4 --out-dir ./out --jobs-file jobs.json --yes
+```
 
-Optimize command
-- `cosmos optimize run` is the canonical web-readiness command for existing MP4 outputs.
-- Modes:
-  - `auto` (default): remux unless transform flags imply transcode
-  - `remux`: stream copy + optional faststart atom relocation
-  - `transcode`: re-encode with optional `--target-height`, `--fps`, `--crf`
-- Key flags:
-  - `--input` (repeatable), `--out-dir`, `--mode`
-  - `--target-height`, `--fps`, `--crf`, `--encoder` (transcode path)
-  - `--faststart/--no-faststart`, `--suffix`, `--force`
-  - `--yes/--no-input`, `--dry-run`, `--skip-ffmpeg-check`, `--json|--plain`
-- Artifacts:
-  - run-level `cosmos_optimize_run.v1.json`
-  - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
-- Encoder resilience:
-  - auto mode now performs a runtime viability probe for hardware encoders and falls back to `libx264` when drivers/runtime support are missing.
-  - if an explicit `--encoder` is provided, Cosmos treats it as authoritative and surfaces the ffmpeg failure instead of silently switching encoders.
+Preview commands:
 
-Process command
-- `cosmos process` is the canonical ingest -> optional crop workflow command.
-- `cosmos pipeline` remains as a deprecated compatibility alias.
+```bash
+cosmos crop preview --input clip.mp4 --jobs-file jobs.json --out ./preview --frame start --frame mid --stack-time 0 --yes
+cosmos crop curated-views-preview --spec curated_views.json --source-root /data --out ./preview --frame start --frame end --yes
+```
 
-Crop preview commands
-- `cosmos crop preview` renders non-interactive contact-sheet + stacked overlay previews from jobs (or single flag-defined crop).
-- `cosmos crop curated-views-preview` does the same for curated-view specs grouped by source clip.
-- Shared preview flags:
-  - `--frame` for keyframe selectors (`start`, `mid`, `end`, `start+2.0`, `12.5`)
-  - `--stack-time` for absolute stacked-overlay times
-  - `--render-max-width`, `--grid-step-px`, `--show-rulers/--no-rulers`, `--show-crosshair/--no-crosshair`, `--alpha`
-  - `--dry-run` to emit plans/paths without rendering images
+## Optimize quick references
 
-Preview outputs
-- Run summary: `cosmos_crop_preview_run.v1.json`
-- Per-clip bundle: `preview_<clip>_<hash>/`
-  - `preview_plan.v1.json`
-  - `frames/*.png`
-  - `sheets/sheet_frame_<selector>.png`
-  - `stacked/stacked_t_<time>.png`
+`cosmos optimize run` is the canonical web-readiness path for existing MP4 outputs.
+
+```bash
+cosmos optimize run --help
+cosmos optimize run --input clip.mp4 --out-dir ./web --yes
+cosmos optimize run --input clip.mp4 --out-dir ./web --mode transcode --target-height 1080 --fps 30 --crf 23 --yes
+```
+
+Modes:
+
+- `auto` (default): remux unless transform flags imply transcode
+- `remux`: stream copy + optional `faststart` atom relocation
+- `transcode`: re-encode with optional scale/fps/crf transforms
+
+Key flags:
+
+- Inputs/output: `--input` (repeatable), `--out-dir`
+- Mode/transforms: `--mode`, `--target-height`, `--fps`, `--crf`, `--encoder`
+- Safety and naming: `--faststart/--no-faststart`, `--suffix`, `--force`
+- Automation: `--yes/--no-input`, `--dry-run`, `--skip-ffmpeg-check`, `--json|--plain`
+
+Optimize artifacts:
+
+- Run-level: `cosmos_optimize_run.v1.json`
+- Per-output: `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
+
+Encoder resilience:
+
+- In auto mode, Cosmos performs a runtime viability probe for hardware encoders and
+  falls back to `libx264` if the advertised hardware path is not actually usable.
+- If `--encoder` is explicitly provided, Cosmos treats that choice as authoritative and
+  surfaces ffmpeg failure directly.
+
+## Provenance helpers
+
+```bash
+cosmos provenance --help
+cosmos provenance map /path/to/output-dir
+```
+
+See [Provenance](provenance.md) for join-key guidance and schema links.

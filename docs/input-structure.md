@@ -1,43 +1,48 @@
-# COSM Camera Input Directory Structure
+# COSM Camera Input Structure
 
-This page explains how your input folder should look before running ingest. If your folders follow this pattern, Cosmos can discover clips and process them correctly.
+Cosmos ingest expects the original COSM camera hierarchy and manifest layout.
 
-Expected layout
-```
+## Expected directory shape
+
+```text
 input_dir/
- ├── 0H/
- │   ├── 0M/
- │   │   ├── 0S/
- │   │   │   ├── meta.json
- │   │   │   ├── <segment .ts files>
- │   │   ├── 1S/
- │   │   │   ├── meta.json
- │   │   │   ├── <segment .ts files>
- │   │   └── ...
- │   └── 1M/
- │       ├── 0S/
- │       │   ├── meta.json
- │       │   ├── <segment .ts files>
- │       └── ...
- └── LADYBIRD.xml  (your manifest; name may vary)
+  0H/
+    0M/
+      0S/
+        meta.json
+        <segment .ts files>
+      1S/
+        meta.json
+        <segment .ts files>
+      ...
+    1M/
+      0S/
+        meta.json
+        <segment .ts files>
+      ...
+  LADYBIRD.xml
 ```
 
-What’s in each folder
-- Hour/Minute/Second folders: `NH/MM/SS` hold second‑long segments from the camera.
-- Each second folder contains:
-  - `meta.json` — frame timing info (start timestamp `x0` and offsets `xi-x0`).
-  - `.ts` transport stream files — the encoded frames.
-- Manifest (`*.xml`) — lists “clips” with start/end and frame indices. Place it at the top of `input_dir`.
+## Required files
 
-Validate quickly
-- Run the interactive ingest self‑test (no processing):
+- `meta.json` in each second folder (`.../SS/`)
+- `.ts` transport stream segments in each second folder
+- a top-level `*.xml` manifest (or pass one explicitly via `--manifest`)
+
+## Quick validation
+
+```bash
+cosmos ingest run --input-dir /path/to/input --output-dir ./out --dry-run --yes
 ```
-cosmos ingest run --yes --dry-run --input-dir /path/to/input --output-dir ./out
+
+If manifest discovery fails, run with an explicit manifest path:
+
+```bash
+cosmos ingest run --input-dir /path/to/input --output-dir ./out --manifest /path/to/LADYBIRD.xml --dry-run --yes
 ```
-If a manifest isn’t found, add `--manifest /path/to/manifest.xml`.
 
-Troubleshooting
-- Missing `meta.json`: the second folder is incomplete; ingest will skip it.
-- No manifest found: pass it explicitly with `--manifest`.
-- Mixed structures: ensure the camera’s original hierarchy is preserved (don’t flatten or rename `0H/0M/0S`).
+## Common issues
 
+- Missing `meta.json`: the second folder is incomplete and may be skipped.
+- Flattened directory layout: restore the `H/M/S` hierarchy.
+- Wrong manifest location: keep it at the root of `input_dir` or pass `--manifest`.
