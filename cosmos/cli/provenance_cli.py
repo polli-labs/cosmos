@@ -67,10 +67,12 @@ def cmd_clip_of(
 
 @app.command("view-of")
 def cmd_view_of(
-    file_path: Annotated[Path, typer.Argument(exists=True, help="Output MP4 path from squarecrop")],
+    file_path: Annotated[
+        Path, typer.Argument(exists=True, help="Output MP4 path from cosmos crop")
+    ],
     json_out: Annotated[bool, typer.Option("--json", help="Emit JSON")] = False,
 ) -> None:
-    """Find the view artifact JSON for a squarecrop-produced MP4 by hashing the file."""
+    """Find the view artifact JSON for a crop-produced MP4 by hashing the file."""
     meta = find_view_for_file(file_path)
     if not meta:
         raise typer.Exit(code=1)

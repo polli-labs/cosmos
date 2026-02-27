@@ -1,13 +1,28 @@
 # Cosmos
 
-Unified ingest and post-processing toolkit for COSM camera media.
+[![CI](https://github.com/polli-labs/cosmos/actions/workflows/ci.yml/badge.svg)](https://github.com/polli-labs/cosmos/actions/workflows/ci.yml)
+[![Docs](https://github.com/polli-labs/cosmos/actions/workflows/docs.yml/badge.svg)](https://github.com/polli-labs/cosmos/actions/workflows/docs.yml)
+[![PyPI](https://img.shields.io/pypi/v/polli-cosmos.svg)](https://pypi.org/project/polli-cosmos/)
 
-Cosmos is designed for both interactive operators and automation:
+Cosmos is a provenance-first video normalization toolkit for agent and human media pipelines.
+
+It turns heterogeneous camera/video inputs into deterministic, web-ready derivatives and
+emits machine-joinable sidecars so downstream systems can trust, trace, and reproduce each asset.
+
+Cosmos is designed for both operators and automation:
 
 - `cosmos` CLI for ingest/crop/optimize/provenance workflows
-- `squarecrop` CLI for standalone crop operations
 - `cosmos.sdk` for stable Python integration
 - run-level and artifact-level provenance sidecars for reproducibility
+
+## Scope today
+
+- First-class adapter for COSM camera ingest workflows (manifest-aware processing)
+- General MP4 post-processing surfaces for crop, preview, optimize, and provenance lookup
+- Deterministic CLI contracts suitable for unattended agent execution
+
+The near-term direction is to add more ingestion adapters while keeping the same normalized
+output and provenance contracts.
 
 ## Documentation
 
@@ -45,7 +60,6 @@ cosmos ingest run --help
 cosmos crop run --help
 cosmos optimize run --help
 cosmos crop preview --help
-squarecrop --help
 ```
 
 ## Common workflows
@@ -97,7 +111,7 @@ make run.provenance DIR=_work/out
 
 ## Crop jobs semantics
 
-Squarecrop jobs accept either offsets or centers:
+Crop jobs accept either offsets or centers:
 
 - Recommended: `offset_x`, `offset_y` in `[-1, 1]` relative to available margin
   - `0` is centered

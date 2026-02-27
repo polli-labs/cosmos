@@ -8,13 +8,12 @@ Repo Layout
 - `cosmos/ingest/` — manifest parsing, preflight, validation, processing/encoding.
 - `cosmos/crop/` — square crop planning and execution; jobs file parser.
 - `cosmos/ffmpeg/` — encoder detection and argument presets; shared across ingest/crop.
-- `cosmos/cli/` — Typer CLIs (`cosmos`, `squarecrop`, `provenance`).
+- `cosmos/cli/` — Typer CLI surfaces under `cosmos` (ingest, crop, optimize, provenance).
 - `schema/cosmos/` and `docs/schemas/` — JSON Schemas for run‑ and artifact‑level provenance.
 
 CLIs & SDK
-- Two CLIs, one SDK.
-  - `cosmos`: ingest pipeline + a convenience `pipeline` command (ingest → optional crop).
-  - `squarecrop`: standalone square crop tool.
+- One CLI, one SDK.
+  - `cosmos`: ingest/crop/optimize/provenance surfaces plus `pipeline` legacy alias (ingest → optional crop).
   - SDK: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob`.
 - Keep TUI flows (Questionary) for interactive runs; always route business logic through `cosmos/sdk` so programmatic and CLI paths stay aligned.
 
@@ -47,7 +46,7 @@ Porting Rules (when migrating older tools)
 
 Monorepo Principles
 - No `src/` layout; packages live at repo root under `cosmos/`.
-- Two CLIs, one SDK over shared modules.
+- One CLI, one SDK over shared modules.
 
 Issue Tracking & Labels
 - Use GitHub Issues (do not create a local `issues/` dir). Labels mirror `priority:*`, `status:*`, plus `comp:*` (ingest|crop|ffmpeg|tui|sdk).
@@ -56,7 +55,7 @@ Notes & Non‑Goals
 - Avoid client‑specific references or paths in this repo. Keep documentation and examples generic and public‑ready.
 - Heavy fixtures for E2E are optional and not required for CI; local devs can enable them via environment flags noted in README and tests.
 
-Squarecrop semantics (hard migration)
+Square-crop semantics (hard migration)
 
 - Prefer offsets: `offset_x`/`offset_y` are relative to available margin in [-1,1]; 0=center; +right/down.
 - Alternative absolute centers: `center_x`/`center_y` in [0,1]. If provided, offsets are ignored.
@@ -64,9 +63,9 @@ Squarecrop semantics (hard migration)
 
 Agent flows (non-interactive)
 - Ingest: `make run.ingest IN=/path/to/raw OUT=/path/to/out YES=1` (add optional WINDOW/CLIPS).
-- Squarecrop: `make run.crop INPUT=clip.mp4 OUT=_work/out JOBS=job.json YES=1` or set `--offset-x/--offset-y --size` (offsets margin-relative [-1,1]; do not combine with centers).
+- Crop: `make run.crop INPUT=clip.mp4 OUT=_work/out JOBS=job.json YES=1` or set `--offset-x/--offset-y --size` (offsets margin-relative [-1,1]; do not combine with centers).
 - Provenance mapping: `make run.provenance DIR=_work/out`.
-Example (Ladybird mirrored data): `squarecrop --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`
+Example (Ladybird mirrored data): `cosmos crop run --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`
 
 Install (prod): `pip install polli-cosmos`
 

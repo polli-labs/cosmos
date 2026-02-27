@@ -1,13 +1,52 @@
 # Contributing
 
-Thanks for helping improve Cosmos. A couple of test/CI notes to avoid surprises:
+Thanks for helping improve Cosmos.
 
-- Windows `CREATE_NO_WINDOW` shim
-  - Some unit tests patch `os.name = "nt"` to exercise Windows‑specific code paths on non‑Windows runners. To keep those tests working cross‑platform, we install a lightweight shim in `cosmos/ingest/processor.py` that defines `subprocess.CREATE_NO_WINDOW = 0` when the attribute is missing.
-  - Guidance: it’s fine to pass `creationflags=subprocess.CREATE_NO_WINDOW` to `subprocess.run`. On non‑Windows, this resolves to `0`. Avoid hard‑coding magic numbers.
+## Development setup
 
-- Encoder detection during dry‑run
-  - For `squarecrop`, when `dry_run=True` we skip hardware encoder detection and default to `libx264`. This keeps tests deterministic and avoids platform quirks or mocked `subprocess.run` issues.
-  - Guidance: in tests that assert on constructed ffmpeg args, don’t expect platform‑specific encoders when `dry_run=True`. If you need to validate detection, run without `dry_run` and ensure ffmpeg is available on the runner.
+```bash
+uv venv .venv
+. .venv/bin/activate
+uv pip install -e ".[dev]"
+```
 
-If you run into CI failures related to these, ping the maintainers or open an issue with the failing job link so we can tune the harness.
+## Quality gate (required before PR)
+
+```bash
+make fmt
+make lint
+make typecheck
+make test
+```
+
+## Architecture expectations
+
+- Keep business logic in SDK/runtime modules (`cosmos/sdk/*`, `cosmos/*`) and keep CLI glue thin.
+- Prefer shared ffmpeg helpers in `cosmos/ffmpeg/*` over ad-hoc command construction.
+- Preserve provenance contracts and join semantics across ingest/crop/optimize outputs.
+
+## Test and CI notes
+
+- Windows `CREATE_NO_WINDOW` shim:
+  - Some tests patch `os.name = "nt"` on non-Windows hosts.
+  - `cosmos/ingest/processor.py` defines `subprocess.CREATE_NO_WINDOW = 0` when missing.
+  - Use `creationflags=subprocess.CREATE_NO_WINDOW` rather than hard-coded values.
+
+- Encoder detection during `--dry-run`:
+  - For `cosmos crop run`, when `dry_run=True`, hardware encoder probing is skipped and the
+    plan defaults to `libx264` for deterministic tests.
+  - Tests asserting ffmpeg args in dry-run mode should not expect host-specific hardware encoders.
+  - To validate runtime probing behavior, run without dry-run on a host with ffmpeg available.
+
+## Documentation and skill freshness
+
+When CLI/SDK/provenance behavior changes, update docs and skill references in the same PR:
+
+- docs under `docs/`
+- skill package under `skills/cosmos/`
+- release notes in `CHANGELOG.md` when applicable
+
+## Reporting issues
+
+- Use GitHub Issues for bugs, feature requests, and tech debt.
+- For security vulnerabilities, do not open public issues. Follow `SECURITY.md`.

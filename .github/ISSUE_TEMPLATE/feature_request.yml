@@ -7,6 +7,7 @@ body:
     attributes:
       label: Title
       placeholder: One-line summary
+    validations: { required: true }
   - type: dropdown
     id: priority
     attributes:
@@ -17,10 +18,22 @@ body:
     id: component
     attributes:
       label: Component
-      options: [ingest, crop, ffmpeg, tui, sdk]
+      options: [ingest, crop, optimize, provenance, ffmpeg, sdk, docs, ci]
+    validations: { required: true }
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What user/operator pain does this solve?
+    validations: { required: true }
   - type: textarea
     id: details
     attributes:
       label: Details
-      description: Context, acceptance criteria, notes
-
+      description: Proposed behavior, CLI/SDK/API shape, and acceptance criteria.
+    validations: { required: true }
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals (optional)
+      description: Clarify what this issue explicitly does not cover.

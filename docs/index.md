@@ -1,11 +1,25 @@
 # Cosmos Documentation
 
-Cosmos is Polli's media processing toolkit for COSM camera data.
+Cosmos is a provenance-first video normalization toolkit.
+
 It is designed to be safe for both humans and automation:
 
-- two CLIs (`cosmos`, `squarecrop`)
+- one CLI (`cosmos`)
 - one SDK (`cosmos.sdk.*`)
 - deterministic provenance artifacts for every real output
+
+## What Cosmos is (and is not)
+
+Cosmos is currently strongest in two areas:
+
+- COSM-native ingest: manifest-aware conversion from camera export layouts to normalized MP4 clips.
+- General MP4 post-processing: crop, preview, optimize, and provenance operations that work on standard MP4 inputs.
+
+Cosmos is not limited to a single camera vendor at the architecture level. The long-term model is:
+
+- many ingest adapters
+- one normalized runtime contract
+- one provenance model
 
 ## Start with the workflow you need
 
@@ -17,8 +31,8 @@ It is designed to be safe for both humans and automation:
 
 ### Create square/rect views and visual QA previews
 
-- Read: [Squarecrop User Guide](squarecrop-user-guide.md)
-- Commands: [squarecrop CLI](squarecrop-cli.md)
+- Read: [Crop User Guide](crop-user-guide.md)
+- Commands: [cosmos CLI](cosmos-cli.md)
 - Preview output contracts: [Provenance](provenance.md)
 
 ### Optimize existing MP4s for web delivery
@@ -29,7 +43,7 @@ optional transcode transforms, and reproducible optimize provenance.
 - Command details: [cosmos CLI](cosmos-cli.md)
 - Encoder fallback policy: [Encoder Behavior](encoder-behavior.md)
 
-## Canonical command quickstart
+## Command quickstart
 
 ```bash
 cosmos --help
@@ -37,7 +51,7 @@ cosmos ingest run --help
 cosmos crop run --help
 cosmos optimize run --help
 cosmos crop preview --help
-squarecrop --help
+cosmos provenance --help
 ```
 
 ## Provenance is a first-class contract
@@ -61,7 +75,7 @@ For a docs-local summary, see [Cosmos Skill](agent-skill.md).
 
 ## Reference map
 
-- CLI references: [cosmos CLI](cosmos-cli.md), [squarecrop CLI](squarecrop-cli.md)
+- CLI reference: [cosmos CLI](cosmos-cli.md)
 - SDK API entry points: [SDK](sdk.md)
 - Platform encoder behavior: [Encoder Behavior](encoder-behavior.md)
 - Schemas:

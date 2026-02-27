@@ -17,7 +17,14 @@ def test_root_help_exposes_process_and_hides_pipeline() -> None:
     assert result.exit_code == 0
     assert "process" in result.stdout
     assert "optimize" in result.stdout
+    assert "squarecrop" not in result.stdout
     assert "pipeline" not in result.stdout
+
+
+def test_root_rejects_squarecrop_subcommand() -> None:
+    result = runner.invoke(app, ["squarecrop", "--help"])
+    assert result.exit_code == 2
+    assert "No such command" in result.output
 
 
 def test_ingest_json_output_contract(monkeypatch, tmp_path: Path) -> None:

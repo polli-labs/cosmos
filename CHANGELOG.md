@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.6.0 — Clean CLI surface (unreleased)
+- Remove the standalone `squarecrop` CLI entrypoint and keep a single command surface under `cosmos`.
+- Standardize operator workflows, docs, and tests on `cosmos crop ...` commands.
+- Keep square-crop behavior and SDK/runtime contracts unchanged while dropping CLI alias/deprecation paths.
+
 ## 0.5.0 — Optimize command + provenance + cross-platform encoder hardening (2026-02-26)
 - Add `cosmos optimize run` CLI and SDK support (`OptimizeOptions`, `optimize`) for web-ready MP4 transforms with `auto|remux|transcode` modes.
 - Add optimize provenance contracts:

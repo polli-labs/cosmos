@@ -23,13 +23,12 @@ nav:
   - Home: index.md
   - Start Here:
       - Ingest User Guide: ingest-user-guide.md
-      - Squarecrop User Guide: squarecrop-user-guide.md
+      - Crop User Guide: crop-user-guide.md
       - Input Structure: input-structure.md
   - CLI:
       - cosmos CLI: cosmos-cli.md
-      - squarecrop CLI: squarecrop-cli.md
       - ingest run flags (legacy reference): ingest-reference.md
-      - squarecrop flags (legacy reference): squarecrop-reference.md
+      - crop run flags (legacy reference): crop-reference.md
   - SDK: sdk.md
   - Provenance: provenance.md
   - Reference:
