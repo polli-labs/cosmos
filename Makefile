@@ -47,10 +47,6 @@ test: ## Run tests
 cosmos: ## Launch cosmos CLI
 	$(ACT) && cosmos --help
 
-.PHONY: squarecrop
-squarecrop: ## Launch squarecrop CLI
-	$(ACT) && squarecrop --help
-
 # ——— Local runs (parameterized) ———
 # Usage examples:
 #   make run.ingest IN=/path/raw OUT=/path/out YES=1 WINDOW=10
@@ -67,8 +63,8 @@ run.ingest: ## Run ingest: IN=/path INput dir, OUT=/path OUTput dir, optional YE
 		$$(for c in $(CLIPS); do echo --clip $$c; done)
 
 .PHONY: run.crop
-run.crop: ## Run squarecrop: INPUT=/path/in.mp4 OUT=/path/out JOBS=/path/jobs.json optional YES=1 DRY=1
-	$(ACT) && python -m cosmos.cli.crop_cli \
+run.crop: ## Run cosmos crop: INPUT=/path/in.mp4 OUT=/path/out JOBS=/path/jobs.json optional YES=1 DRY=1
+	$(ACT) && cosmos crop run \
 		$$([ -n "$(INPUT)" ] && echo --input "$(INPUT)") \
 		$$([ -n "$(OUT)" ] && echo --out-dir "$(OUT)") \
 		$$([ -n "$(JOBS)" ] && echo --jobs-file "$(JOBS)") \
@@ -139,13 +135,13 @@ fixtures.download-outputs: ## Download known-good outputs into cache (optional)
 	./dev/scripts/fixtures_sync.sh download-outputs
 
 .PHONY: fixtures.pack-crop-outputs
-fixtures.pack-crop-outputs: ## Copy selected squarecrop outputs into cache (optional)
+fixtures.pack-crop-outputs: ## Copy selected crop outputs into cache (optional)
 	./dev/scripts/fixtures_sync.sh pack-crop-outputs
 
 .PHONY: fixtures.upload-crop-outputs
-fixtures.upload-crop-outputs: ## Upload selected squarecrop outputs into remote (optional)
+fixtures.upload-crop-outputs: ## Upload selected crop outputs into remote (optional)
 	./dev/scripts/fixtures_sync.sh upload-crop-outputs
 
 .PHONY: fixtures.download-crop-outputs
-fixtures.download-crop-outputs: ## Download selected squarecrop outputs into cache (optional)
+fixtures.download-crop-outputs: ## Download selected crop outputs into cache (optional)
 	./dev/scripts/fixtures_sync.sh download-crop-outputs

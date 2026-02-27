@@ -19,7 +19,6 @@
 ## CLI evolution direction
 
 - Preserve a unified `cosmos` command surface.
-- Treat `squarecrop` as compatibility surface while planning eventual deprecation.
 - Prefer `noun -> verb` subcommand patterns and stable machine output modes for agent users.
 - Keep preview machine outputs (`--json`) stable since review tooling may automate over run/plan artifact paths.
 - Keep optimize machine outputs (`--json`) stable for batch tooling and async runners.

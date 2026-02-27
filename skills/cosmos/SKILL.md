@@ -6,9 +6,9 @@ x:
   source_repo: "cosmos"
   source_branch: "main"
   source_commit: "HEAD"
-  package_version: "0.5.0"
+  package_version: "0.6.0"
   generator: "claude-code"
-  last_modified: "2026-02-26T21:00:00Z"
+  last_modified: "2026-02-27T21:38:44Z"
 ---
 
 # Cosmos
@@ -17,8 +17,8 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 
 ## Quick Facts
 
-- Version: 0.5.0
-- CLIs: `cosmos` and `squarecrop`
+- Version: 0.6.0
+- CLI: `cosmos` (including `cosmos crop ...` surfaces)
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions`
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
 - Optimize support: `cosmos optimize run` (`auto|remux|transcode`) with run/artifact provenance (`cosmos_optimize_run.v1.json`, `*.cosmos_optimized.v1.json`)

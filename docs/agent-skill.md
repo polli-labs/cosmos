@@ -7,7 +7,7 @@ This page summarizes the in-repo Cosmos skill package used by agent operators.
 Cosmos is CLI-first and automation-heavy. The skill captures canonical workflows,
 contracts, and maintenance rules so feature work stays aligned across:
 
-- CLI surfaces (`cosmos`, `squarecrop`)
+- CLI surfaces (`cosmos crop ...` and related subcommands)
 - SDK entry points (`cosmos.sdk.*`)
 - ffmpeg/encoder behavior
 - provenance fields and schema stability
@@ -31,7 +31,7 @@ contracts, and maintenance rules so feature work stays aligned across:
 ## High-priority conventions
 
 1. Keep business logic in `cosmos/sdk/*`; keep CLI layers thin.
-2. Preserve squarecrop semantics (`offset_x`/`offset_y` in `[-1, 1]`).
+2. Preserve square-crop semantics (`offset_x`/`offset_y` in `[-1, 1]`).
 3. Preserve provenance join keys and schema stability.
 4. Keep CLI output contracts safe for automation (`--json`, `--plain`, `--yes`, `--dry-run`).
 5. Treat skill freshness as a release-quality requirement, not optional docs polish.

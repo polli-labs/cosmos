@@ -1,17 +1,17 @@
-# Squarecrop User Guide
+# Crop User Guide
 
-This guide covers square crop generation from existing MP4s using `squarecrop`.
+This guide covers crop generation from existing MP4s using `cosmos crop run`.
 
 ## Quick start
 
 ```bash
-squarecrop --input /path/to/clip.mp4 --out-dir ./crops --yes
+cosmos crop run --input /path/to/clip.mp4 --out-dir ./crops --yes
 ```
 
 Interactive mode is also available:
 
 ```bash
-squarecrop
+cosmos crop run
 ```
 
 ## Jobs file workflow (recommended)
@@ -35,7 +35,7 @@ Example `job_settings.json`:
 Run with jobs file:
 
 ```bash
-squarecrop --jobs-file /path/to/job_settings.json --input /path/to/clip.mp4 --out-dir ./crops --yes
+cosmos crop run --jobs-file /path/to/job_settings.json --input /path/to/clip.mp4 --out-dir ./crops --yes
 ```
 
 ## Crop semantics
@@ -52,7 +52,7 @@ Additional fields:
 ## Dry-run and automation
 
 ```bash
-squarecrop --input clip.mp4 --out-dir ./crops --dry-run --yes
+cosmos crop run --input clip.mp4 --out-dir ./crops --dry-run --yes
 ```
 
 `--dry-run` generates plans/commands without encoding.
