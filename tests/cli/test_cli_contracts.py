@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 from pathlib import Path
 
 from cosmos.cli.cosmos_app import app
@@ -10,6 +11,11 @@ from typer.testing import CliRunner
 
 optimize_mod = importlib.import_module("cosmos.sdk.optimize")
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 def test_root_help_exposes_process_and_hides_pipeline() -> None:
@@ -433,11 +439,16 @@ def test_pipeline_alias_warns_and_processes(monkeypatch, tmp_path: Path) -> None
 
 
 def test_ingest_adapter_flag_visible_in_help() -> None:
-    result = runner.invoke(app, ["ingest", "run", "--help"])
+    result = runner.invoke(
+        app,
+        ["ingest", "run", "--help"],
+        env={"NO_COLOR": "1", "COLUMNS": "200"},
+    )
     assert result.exit_code == 0
-    assert "--adapter" in result.stdout
-    assert "cosm" in result.stdout
-    assert "generic-media" in result.stdout
+    plain = _strip_ansi(result.stdout).lower()
+    assert "source adapter" in plain
+    assert "cosm" in plain
+    assert "generic-media" in plain
 
 
 def test_ingest_adapter_flag_passed_through(monkeypatch, tmp_path: Path) -> None:
