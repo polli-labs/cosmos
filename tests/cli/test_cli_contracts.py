@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 from pathlib import Path
 
 from cosmos.cli.cosmos_app import app
@@ -10,6 +11,11 @@ from typer.testing import CliRunner
 
 optimize_mod = importlib.import_module("cosmos.sdk.optimize")
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 def test_root_help_exposes_process_and_hides_pipeline() -> None:
@@ -430,3 +436,55 @@ def test_pipeline_alias_warns_and_processes(monkeypatch, tmp_path: Path) -> None
     assert payload["command"] == "cosmos process"
     assert payload["ingest_count"] == 1
     assert "deprecated" in result.output
+
+
+def test_ingest_adapter_flag_visible_in_help() -> None:
+    result = runner.invoke(
+        app,
+        ["ingest", "run", "--help"],
+        env={"NO_COLOR": "1", "COLUMNS": "200"},
+    )
+    assert result.exit_code == 0
+    plain = _strip_ansi(result.stdout).lower()
+    assert "source adapter" in plain
+    assert "cosm" in plain
+    assert "generic-media" in plain
+
+
+def test_ingest_adapter_flag_passed_through(monkeypatch, tmp_path: Path) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    captured_opts: list[object] = []
+
+    def _capture_ingest(*_args, **kwargs):
+        captured_opts.append(kwargs.get("options"))
+        return [output_dir / "clip.mp4"]
+
+    monkeypatch.setattr("cosmos.cli.ingest_cli.ingest", _capture_ingest)
+
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            "run",
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            str(output_dir),
+            "--adapter",
+            "generic-media",
+            "--yes",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(captured_opts) == 1
+    assert captured_opts[0].adapter == "generic-media"

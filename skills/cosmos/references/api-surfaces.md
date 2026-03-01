@@ -7,7 +7,9 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 ### Ingest
 
 - `ingest(input_dir, output_dir, *, manifest, options) -> list[Path]`
-- `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, and filter-thread knobs.
+- `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, filter-thread knobs, and source adapter selection (`adapter` field).
+- Adapter contract: `IngestAdapter` Protocol in `cosmos.ingest.adapter` — defines `detect()`, `discover_clips()`, `validate_clip()`, `build_ffmpeg_spec()`, `validate_system()`.
+- Built-in adapters: `cosm` (COSM C360), `generic-media` (flat video directory). Auto-detected by default; explicit via `IngestOptions.adapter` or CLI `--adapter`.
 
 ### Crop
 
@@ -52,7 +54,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 ### Root app
 
-- `cosmos ingest ...`
+- `cosmos ingest ...` (supports `--adapter` for source layout selection)
 - `cosmos crop ...`
 - `cosmos optimize ...`
 - `cosmos provenance ...`

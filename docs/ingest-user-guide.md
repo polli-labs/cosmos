@@ -1,6 +1,6 @@
 # Ingest User Guide
 
-This guide walks through converting COSM camera inputs into MP4 clips with `cosmos ingest run`.
+This guide walks through ingesting video sources into normalized MP4 clips with `cosmos ingest run`. Cosmos supports multiple source layouts through its adapter system and auto-detects the correct one.
 
 ## Prerequisites
 
@@ -27,10 +27,27 @@ uv venv .venv
 uv pip install -e ".[dev]"
 ```
 
+## Source adapters
+
+Cosmos auto-detects the source layout when you point `--input-dir` at a directory:
+
+| Adapter | Auto-detected when | What it does |
+|---|---|---|
+| **cosm** | `*.xml` manifest in root | Parses COSM C360 manifest, validates TS segments, applies quad-tile stitch filter graph |
+| **generic-media** | Video files present (`.mp4`, `.mov`, `.mkv`, etc.) | Treats each video file as a clip, re-encodes with scaling |
+
+To override auto-detection, pass `--adapter NAME`:
+
+```bash
+cosmos ingest run --input-dir /data/videos --output-dir ./out --adapter generic-media --yes
+```
+
 ## Validate your input structure
 
-Before running ingest, confirm your camera folders match the expected structure in
+For COSM sources, confirm your camera folders match the expected structure in
 [Input Structure](input-structure.md).
+
+For generic media, any directory with video files works.
 
 ## Run ingest
 
@@ -54,6 +71,9 @@ cosmos ingest run --input-dir /path/to/input --output-dir ./out --clip CLIP1 --c
 
 # Dry-run only (plan, no ffmpeg execution)
 cosmos ingest run --input-dir /path/to/input --output-dir ./out --dry-run --yes
+
+# Ingest a directory of standalone MP4s
+cosmos ingest run --input-dir /data/field-videos --output-dir ./out --yes
 ```
 
 ## Performance and memory tuning
@@ -78,5 +98,6 @@ Dry-run writes `cosmos_dry_run.json` with planned commands and clip plan.
 ## Troubleshooting
 
 - ffmpeg not found: verify install and PATH
-- manifest not found: pass `--manifest /path/to/file.xml`
-- missing segments: verify `meta.json` and `.ts` files are present in expected folders
+- "No adapter could handle": your directory has no XML manifest and no video files — check contents
+- manifest not found (COSM): ensure `*.xml` is in the input root
+- missing segments (COSM): verify `meta.json` and `.ts` files are present in expected folders

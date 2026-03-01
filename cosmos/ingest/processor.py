@@ -14,6 +14,7 @@ from pathlib import Path
 
 from cosmos.ffmpeg.detect import resolve_ffmpeg_path
 from cosmos.ffmpeg.presets import build_encoder_settings
+from cosmos.ingest.adapter import FfmpegInputSpec
 
 from .manifest import ClipInfo
 from .validation import ClipValidationResult, SegmentInfo
@@ -153,6 +154,10 @@ class VideoProcessor:
         return temp_file
 
     def process_clip(self, clip_result: ClipValidationResult) -> ProcessingResult:  # noqa: C901
+        """Legacy entry-point: builds COSM-specific concat + filter internally.
+
+        Prefer ``process_clip_with_spec`` for adapter-driven ingest.
+        """
         try:
             from typing import Any, cast
 
@@ -280,3 +285,134 @@ class VideoProcessor:
                     os.remove(concat_file)
                 except Exception as e:  # noqa: BLE001
                     logging.getLogger(__name__).debug("Failed to cleanup concat file: %s", e)
+
+    def process_clip_with_spec(  # noqa: C901
+        self,
+        clip_result: ClipValidationResult,
+        spec: FfmpegInputSpec,
+    ) -> ProcessingResult:
+        """Execute ffmpeg using an adapter-provided ``FfmpegInputSpec``."""
+        try:
+            from typing import Any, cast
+
+            opt = cast(Any, self.options)
+            output_stem = spec.output_stem or clip_result.clip.name
+            output_path = self.output_dir / f"{output_stem}.mp4"
+
+            import multiprocessing
+
+            total_threads = multiprocessing.cpu_count()
+            if self.options.quality_mode == ProcessingMode.MINIMAL:
+                thread_count = 1
+            elif self.options.quality_mode == ProcessingMode.LOW_MEMORY or self.options.low_memory:
+                thread_count = max(1, total_threads // 2)
+            else:
+                thread_count = None
+
+            for encoder in self._available_encoders:
+                try:
+                    cmd = [resolve_ffmpeg_path(), "-y"]
+                    # best-effort decode acceleration
+                    if getattr(opt, "decode", None) and str(opt.decode).lower() == "hw":
+                        try:
+                            import platform
+
+                            sysname = platform.system().lower()
+                            if sysname == "darwin":
+                                cmd += ["-hwaccel", "videotoolbox"]
+                            elif sysname == "linux":
+                                cmd += ["-hwaccel", "cuda"]
+                            elif sysname == "windows":
+                                cmd += ["-hwaccel", "dxva2"]
+                        except Exception as e:
+                            logging.getLogger(__name__).debug("decode accel setup skipped: %s", e)
+
+                    ws = getattr(opt, "window_seconds", None)
+                    if ws and ws > 0:
+                        cmd += ["-to", f"{ws}"]
+
+                    # Adapter-provided input args
+                    cmd.extend(spec.input_args)
+
+                    # Adapter-provided filter graph (optional)
+                    if spec.filter_complex is not None:
+                        cmd += ["-filter_complex", spec.filter_complex, "-map", "[out]"]
+
+                    memory_opts: list[str] = []
+                    if self.options.low_memory or self.options.quality_mode in [
+                        ProcessingMode.LOW_MEMORY,
+                        ProcessingMode.MINIMAL,
+                    ]:
+                        memory_opts = [
+                            "-max_muxing_queue_size",
+                            "1024",
+                            "-tile-columns",
+                            "0",
+                            "-frame-parallel",
+                            "0",
+                        ]
+                    ft = getattr(opt, "filter_threads", None)
+                    fct = getattr(opt, "filter_complex_threads", None)
+                    if ft:
+                        cmd += ["-filter_threads", str(ft)]
+                    if fct:
+                        cmd += ["-filter_complex_threads", str(fct)]
+                    cmd.extend(self._get_encoder_settings(encoder, thread_count))
+                    cmd.extend(memory_opts)
+                    cmd.extend(spec.extra_output_args)
+                    cmd.append(str(output_path))
+
+                    creation_flags = CREATE_NO_WINDOW
+
+                    try:
+                        output_path.with_suffix(output_path.suffix + ".cmd.txt").write_text(
+                            " ".join(cmd)
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).debug("failed to write cmd file: %s", e)
+
+                    result = subprocess.run(
+                        cmd,
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        creationflags=creation_flags,
+                    )
+                    try:
+                        output_path.with_suffix(output_path.suffix + ".log.txt").write_text(
+                            (result.stdout or "") + "\n" + (result.stderr or "")
+                        )
+                    except Exception as e:
+                        logging.getLogger(__name__).debug("failed to write log file: %s", e)
+
+                    duration = clip_result.clip.duration
+                    frames = sum(seg.frame_count for seg in clip_result.segments)
+                    return ProcessingResult(
+                        clip=clip_result.clip,
+                        output_path=output_path,
+                        duration=duration,
+                        frames_processed=frames,
+                        success=True,
+                        used_encoder=encoder.value,
+                    )
+                except subprocess.SubprocessError as e:
+                    last_error = str(e)
+                    continue
+            return ProcessingResult(
+                clip=clip_result.clip,
+                output_path=None,
+                duration=0,
+                frames_processed=0,
+                success=False,
+                error=last_error if "last_error" in locals() else "Unknown error",
+            )
+        finally:
+            # Clean up adapter-provided temp files
+            for tf in spec.temp_files:
+                if os.path.exists(tf):
+                    try:
+                        os.remove(tf)
+                    except Exception as e:  # noqa: BLE001
+                        logging.getLogger(__name__).debug("Failed to cleanup temp file: %s", e)
