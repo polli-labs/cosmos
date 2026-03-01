@@ -268,6 +268,27 @@ def test_fan_out_one_clip_multiple_views() -> None:
     assert len(down) == 2
 
 
+def test_downstream_dedupes_diamond_graph() -> None:
+    index = LineageIndex()
+    index.nodes["root"] = Node(
+        id="clip-root", stage="ingest", sha256="root", path="root.mp4", sidecar="r.json"
+    )
+    index.nodes["a"] = Node(id="view-a", stage="crop", sha256="a", path="a.mp4", sidecar="a.json")
+    index.nodes["b"] = Node(id="view-b", stage="crop", sha256="b", path="b.mp4", sidecar="b.json")
+    index.nodes["leaf"] = Node(
+        id="optimized-leaf", stage="optimize", sha256="leaf", path="leaf.mp4", sidecar="l.json"
+    )
+    index.edges = [
+        Edge(source="root", target="a"),
+        Edge(source="root", target="b"),
+        Edge(source="a", target="leaf"),
+        Edge(source="b", target="leaf"),
+    ]
+
+    down = index.downstream("root")
+    assert [n.sha256 for n in down] == ["a", "b", "leaf"]
+
+
 # ---------------------------------------------------------------------------
 # Serialisation
 # ---------------------------------------------------------------------------

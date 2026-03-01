@@ -144,6 +144,7 @@ class LineageIndex:
 
     def _traverse(self, sha256: str, *, direction: str) -> list[Node]:
         visited: set[str] = set()
+        emitted: set[str] = set()
         result: list[Node] = []
         stack = [sha256]
         while stack:
@@ -157,6 +158,9 @@ class LineageIndex:
                 else self._direct_children(current)
             )
             for n in neighbours:
+                if n.sha256 in emitted:
+                    continue
+                emitted.add(n.sha256)
                 result.append(n)
                 stack.append(n.sha256)
         return sorted(result, key=_node_sort_key)
