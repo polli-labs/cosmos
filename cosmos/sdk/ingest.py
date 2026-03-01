@@ -88,6 +88,20 @@ def ingest(  # noqa: C901
         _log.warning("No clips discovered by adapter %r in %s", adapter.name, input_dir)
         return []
 
+    # Keep legacy manifest provenance behavior for COSM auto-detect runs.
+    manifest_for_run = manifest
+    if manifest_for_run is None and adapter.name == "cosm":
+        maybe_manifest = next(
+            (
+                clip.extra.get("_manifest_path")
+                for clip in all_clips
+                if isinstance(clip.extra.get("_manifest_path"), Path)
+            ),
+            None,
+        )
+        if isinstance(maybe_manifest, Path):
+            manifest_for_run = maybe_manifest
+
     # -- prepare processor (encoder detection, options) -----------------------
     mode_map = {
         "quality": ProcessingMode.QUALITY,
@@ -118,7 +132,7 @@ def ingest(  # noqa: C901
     ingest_run_id, _run_path = emit_ingest_run(
         output_dir=output_dir,
         input_dir=input_dir,
-        manifest_path=manifest,
+        manifest_path=manifest_for_run,
         options={
             "adapter": adapter.name,
             "resolution": [options.width, options.height],
@@ -229,6 +243,11 @@ def _emit_clip_provenance(
 ) -> None:
     """Best-effort provenance emission for a single clip."""
     try:
+        end_time_sec = (
+            clip.end_time_sec
+            if clip.end_time_sec is not None
+            else clip.start_time_sec + clip_result.clip.duration
+        )
         encode_info = {
             "impl": res.used_encoder,
             "filtergraph": spec.filter_complex,
@@ -241,7 +260,7 @@ def _emit_clip_provenance(
             encode_info=encode_info,
             time_ms=(
                 clip.start_time_sec * 1000.0,
-                ((clip.end_time_sec or clip.start_time_sec) + clip_result.clip.duration) * 1000.0,
+                end_time_sec * 1000.0,
             ),
             frames=(clip.frame_start, clip.frame_end),
         )
