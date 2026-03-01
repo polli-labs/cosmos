@@ -15,13 +15,20 @@ from cosmos.cli.io import (
 )
 from cosmos.sdk.ingest import IngestOptions, ingest
 
-app = typer.Typer(help="COSM camera MP4 generation (ingest)")
+app = typer.Typer(help="Video ingest (auto-detects source layout, default: COSM)")
 
 
 @app.command()
 def run(
     input_dir: Annotated[Path | None, typer.Option(exists=True, dir_okay=True)] = None,
     output_dir: Annotated[Path | None, typer.Option(dir_okay=True)] = None,
+    adapter: Annotated[
+        str | None,
+        typer.Option(
+            "--adapter",
+            help="Source adapter (cosm|generic-media). Auto-detected when omitted.",
+        ),
+    ] = None,
     non_interactive: Annotated[
         bool, typer.Option("--yes", "--no-input", help="Skip interactive prompts")
     ] = False,
@@ -87,6 +94,7 @@ def run(
             filter_complex_threads=filter_complex_threads,
             decode=decode,
             window_seconds=window_seconds,
+            adapter=adapter,
         )
         results = ingest(input_dir, output_dir, manifest=None, options=options)
     except Exception as exc:  # noqa: BLE001

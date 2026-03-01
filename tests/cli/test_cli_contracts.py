@@ -430,3 +430,50 @@ def test_pipeline_alias_warns_and_processes(monkeypatch, tmp_path: Path) -> None
     assert payload["command"] == "cosmos process"
     assert payload["ingest_count"] == 1
     assert "deprecated" in result.output
+
+
+def test_ingest_adapter_flag_visible_in_help() -> None:
+    result = runner.invoke(app, ["ingest", "run", "--help"])
+    assert result.exit_code == 0
+    assert "--adapter" in result.stdout
+    assert "cosm" in result.stdout
+    assert "generic-media" in result.stdout
+
+
+def test_ingest_adapter_flag_passed_through(monkeypatch, tmp_path: Path) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    captured_opts: list[object] = []
+
+    def _capture_ingest(*_args, **kwargs):
+        captured_opts.append(kwargs.get("options"))
+        return [output_dir / "clip.mp4"]
+
+    monkeypatch.setattr("cosmos.cli.ingest_cli.ingest", _capture_ingest)
+
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            "run",
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            str(output_dir),
+            "--adapter",
+            "generic-media",
+            "--yes",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(captured_opts) == 1
+    assert captured_opts[0].adapter == "generic-media"
