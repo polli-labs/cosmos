@@ -19,6 +19,7 @@ from cosmos.ingest.processor import (
 from cosmos.sdk.provenance import (
     emit_clip_artifact,
     emit_ingest_run,
+    ffprobe_video,
 )
 from cosmos.utils.io import ensure_dir
 
@@ -243,11 +244,23 @@ def _emit_clip_provenance(
 ) -> None:
     """Best-effort provenance emission for a single clip."""
     try:
-        end_time_sec = (
-            clip.end_time_sec
-            if clip.end_time_sec is not None
-            else clip.start_time_sec + clip_result.clip.duration
-        )
+        if clip.end_time_sec is not None:
+            end_time_sec = clip.end_time_sec
+        else:
+            # Adapter flows (for example generic-media) may not know duration
+            # at discovery time. Prefer runtime duration and fall back to a
+            # probe of the encoded artifact when needed.
+            duration_sec = 0.0
+            for candidate in (res.duration, clip_result.clip.duration):
+                if candidate and candidate > 0:
+                    duration_sec = float(candidate)
+                    break
+            if duration_sec <= 0 and res.output_path is not None:
+                probed = ffprobe_video(res.output_path)
+                probed_duration = probed.get("duration_sec")
+                if isinstance(probed_duration, (int, float)) and probed_duration > 0:
+                    duration_sec = float(probed_duration)
+            end_time_sec = clip.start_time_sec + duration_sec
         encode_info = {
             "impl": res.used_encoder,
             "filtergraph": spec.filter_complex,

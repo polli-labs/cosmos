@@ -96,3 +96,51 @@ def test_emit_clip_provenance_does_not_double_count_end_time(
     )
 
     assert captured["time_ms"] == (10000.0, 20000.0)
+
+
+def test_emit_clip_provenance_probes_output_duration_when_unknown(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    ingest_mod = importlib.import_module("cosmos.sdk.ingest")
+    output_mp4 = tmp_path / "clip.mp4"
+    output_mp4.write_bytes(b"ok")
+
+    captured: dict[str, object] = {}
+
+    def _capture_clip_emit(**kwargs):
+        captured.update(kwargs)
+        return tmp_path / "clip.mp4.cosmos_clip.v1.json"
+
+    monkeypatch.setattr(ingest_mod, "emit_clip_artifact", _capture_clip_emit)
+    monkeypatch.setattr(ingest_mod, "ffprobe_video", lambda _p: {"duration_sec": 7.25})
+
+    clip = SimpleNamespace(
+        name="CLIP2",
+        start_time_sec=5.0,
+        end_time_sec=None,
+        frame_start=1,
+        frame_end=10,
+    )
+    clip_result = SimpleNamespace(clip=SimpleNamespace(duration=0.0, frame_count=10))
+    spec = SimpleNamespace(filter_complex="dummy-filter")
+    result = ProcessingResult(
+        clip=SimpleNamespace(duration=0.0, frame_count=10),
+        output_path=output_mp4,
+        duration=0.0,
+        frames_processed=10,
+        success=True,
+        used_encoder="libx264",
+    )
+
+    _emit_clip_provenance(
+        ingest_run_id="run-id",
+        clip=clip,
+        clip_result=clip_result,
+        spec=spec,
+        res=result,
+        options=IngestOptions(crf=23),
+        processor=SimpleNamespace(),
+    )
+
+    assert captured["time_ms"] == (5000.0, 12250.0)
