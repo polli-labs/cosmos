@@ -19,11 +19,12 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 
 - Version: 0.6.0
 - CLI: `cosmos` (including `cosmos crop ...` surfaces)
-- SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions`
+- SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions`; lineage: `from cosmos.sdk.lineage import build_index, LineageIndex`
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
 - Optimize support: `cosmos optimize run` (`auto|remux|transcode`) with run/artifact provenance (`cosmos_optimize_run.v1.json`, `*.cosmos_optimized.v1.json`)
 - Optimize auto mode runtime-probes hardware encoders and falls back to `libx264` when unavailable
 - Preview support: `cosmos crop preview` + `cosmos crop curated-views-preview` emitting `cosmos_crop_preview_run.v1.json` and per-clip `preview_plan.v1.json` bundles
+- Lineage support: `cosmos lineage` CLI (`build`, `upstream`, `downstream`, `chain`, `tree`) and `cosmos.sdk.lineage` module for graph traversal over provenance sidecars
 - ffmpeg resolution order: `COSMOS_FFMPEG` -> `~/.local/share/cosmos/bin/ffmpeg` -> system `PATH`
 
 ## Use This Skill When

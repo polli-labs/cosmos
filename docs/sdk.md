@@ -130,6 +130,34 @@ Optimize behavior and artifacts:
 - Output artifact (non-dry-run): `*.mp4.cosmos_optimized.v1.json`
 - Dry-run plan: `cosmos_optimize_dry_run.json`
 
+## Lineage graph API
+
+```python
+from pathlib import Path
+from cosmos.sdk.lineage import build_index
+
+index = build_index(Path("./outputs"))
+
+# Upstream ancestors of a given artifact
+ancestors = index.upstream("abc123...")
+
+# Downstream derivatives
+derivatives = index.downstream("abc123...")
+
+# Full chain (upstream + self + downstream)
+chain = index.chain("abc123...")
+
+# Nested tree dict (upstream direction)
+tree = index.tree("abc123...")
+
+# Serialize to JSON
+index.write(Path("lineage.json"))
+```
+
+The lineage index scans `*.cosmos_clip.v1.json`, `*.cosmos_view.v1.json`, and
+`*.cosmos_optimized.v1.json` sidecars recursively. Nodes are keyed by `output.sha256`
+and edges are derived from `source.sha256` join keys.
+
 ## Provenance helper API
 
 ```python

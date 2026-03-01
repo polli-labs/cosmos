@@ -62,6 +62,32 @@ These artifacts support reproducibility, auditability, and stable downstream joi
 }
 ```
 
+## Lineage graph
+
+Cosmos can build a directed acyclic graph (DAG) from provenance sidecars to answer
+upstream/downstream questions across pipeline stages.
+
+```bash
+# Build and inspect the lineage index
+cosmos lineage build /path/to/outputs --json
+
+# What was this optimized artifact made from?
+cosmos lineage upstream <sha256-or-id> --in /path/to/outputs --json
+
+# What derivatives exist for this clip?
+cosmos lineage downstream <sha256-or-id> --in /path/to/outputs --json
+
+# Full chain (ancestors + self + descendants)
+cosmos lineage chain <sha256-or-id> --in /path/to/outputs --json
+
+# Nested source tree
+cosmos lineage tree <sha256-or-id> --in /path/to/outputs --json
+```
+
+The lineage index is built deterministically from sidecar files and uses the same
+sha256 join keys documented above. See the [CLI reference](cosmos-cli.md#lineage-graph-queries)
+for full command documentation.
+
 ## Operational guidance
 
 - Keep sidecar JSON files with the MP4s when copying outputs.

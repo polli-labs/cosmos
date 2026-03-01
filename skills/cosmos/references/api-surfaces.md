@@ -41,6 +41,16 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - auto-selected hardware encoders are runtime-probed and degrade to `libx264` when unavailable.
   - explicitly forced encoders are treated as strict and fail fast on ffmpeg errors.
 
+### Lineage
+
+- `build_index(*dirs) -> LineageIndex`: Scan directories for provenance sidecars and build a DAG.
+- `LineageIndex.upstream(sha256) -> list[Node]`: Transitive ancestors.
+- `LineageIndex.downstream(sha256) -> list[Node]`: Transitive descendants.
+- `LineageIndex.chain(sha256) -> list[Node]`: Full lineage (upstream + self + downstream).
+- `LineageIndex.tree(sha256) -> dict`: Nested source hierarchy.
+- `LineageIndex.write(path) -> Path`: Serialize index to JSON.
+- `LineageIndex.to_dict() -> dict`: Serialize to dict with `cosmos-lineage-index-v1` schema.
+
 ### Provenance
 
 - Emitters:
@@ -56,6 +66,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 - `cosmos crop ...`
 - `cosmos optimize ...`
 - `cosmos provenance ...`
+- `cosmos lineage ...`
 - `cosmos pipeline ...` (legacy convenience path)
 
 ### Crop commands
@@ -79,6 +90,20 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - modes: `--mode auto|remux|transcode`
   - transforms: `--target-height`, `--fps`, `--crf`, `--encoder`
   - safety/io: `--faststart`, `--suffix`, `--force`, `--yes`, `--dry-run`, `--json|--plain`
+
+### Lineage commands
+
+- `cosmos lineage build <dirs...> [--output FILE] [--json|--plain]`
+  - Scans directories for provenance sidecars and builds a lineage index.
+- `cosmos lineage upstream <identifier> [--in <dir>...] [--json|--plain]`
+  - Shows all transitive ancestors of the artifact.
+- `cosmos lineage downstream <identifier> [--in <dir>...] [--json|--plain]`
+  - Shows all transitive derivatives of the artifact.
+- `cosmos lineage chain <identifier> [--in <dir>...] [--json|--plain]`
+  - Full chain: upstream + self + downstream.
+- `cosmos lineage tree <identifier> [--in <dir>...] [--json|--plain]`
+  - Nested upstream source hierarchy.
+- Identifiers accept full sha256, sha256 prefix, or artifact ID.
 
 ### Non-interactive safety
 

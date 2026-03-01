@@ -16,6 +16,8 @@ Detailed module map for the current `cosmos` repo state.
   - preview orchestrator wrappers and `RenderOptions`.
 - `cosmos/sdk/provenance.py`
   - emitters/resolvers for run/artifact provenance.
+- `cosmos/sdk/lineage.py`
+  - lineage index builder and graph traversal (DAG over provenance sidecars).
 
 - `cosmos/ingest/manifest.py`
   - COSM manifest parsing and clip metadata.

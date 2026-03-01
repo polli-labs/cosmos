@@ -8,6 +8,7 @@ import typer
 from cosmos.cli.crop_cli import app as crop_app
 from cosmos.cli.ingest_cli import app as ingest_app
 from cosmos.cli.io import emit_paths, emit_payload, info, raise_mapped_exit, resolve_output_mode
+from cosmos.cli.lineage_cli import app as lineage_app
 from cosmos.cli.optimize_cli import app as optimize_app
 from cosmos.cli.provenance_cli import app as prov_app
 from cosmos.sdk.crop import CropJob
@@ -20,6 +21,7 @@ app.add_typer(ingest_app, name="ingest", help="COSM camera MP4 generation")
 app.add_typer(crop_app, name="crop", help="Post-processing crop (square or rectangular)")
 app.add_typer(optimize_app, name="optimize", help="Web-ready MP4 optimization")
 app.add_typer(prov_app, name="provenance", help="Inspect provenance artifacts")
+app.add_typer(lineage_app, name="lineage", help="Lineage graph queries")
 
 
 def _run_process(

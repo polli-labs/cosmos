@@ -11,6 +11,7 @@
 - `cosmos crop curated-views-preview`: preview curated-view specs
 - `cosmos optimize run`: remux/transcode MP4s for web delivery
 - `cosmos provenance ...`: lookup/hash helpers for produced artifacts
+- `cosmos lineage ...`: lineage graph queries (upstream, downstream, chain, tree)
 
 Legacy alias:
 
@@ -89,6 +90,30 @@ Encoder resilience:
   falls back to `libx264` if the advertised hardware path is not actually usable.
 - If `--encoder` is explicitly provided, Cosmos treats that choice as authoritative and
   surfaces ffmpeg failure directly.
+
+## Lineage graph queries
+
+`cosmos lineage` provides graph traversal over provenance sidecar artifacts
+across ingest, crop, and optimize stages.
+
+```bash
+cosmos lineage build /path/to/output-dir --json
+cosmos lineage build /path/to/output-dir --output lineage.json
+cosmos lineage upstream <sha256-or-id> --in /path/to/output-dir --json
+cosmos lineage downstream <sha256-or-id> --in /path/to/output-dir --json
+cosmos lineage chain <sha256-or-id> --in /path/to/output-dir --json
+cosmos lineage tree <sha256-or-id> --in /path/to/output-dir --json
+```
+
+Commands:
+
+- `build`: Scan directories for provenance sidecars and build a lineage index (optionally write to file).
+- `upstream`: Show all transitive ancestors of an artifact.
+- `downstream`: Show all transitive derivatives of an artifact.
+- `chain`: Show the full lineage chain (upstream + self + downstream).
+- `tree`: Show nested upstream source hierarchy.
+
+Identifiers accept full sha256, sha256 prefix, or artifact IDs (e.g., `clip-CLIP1-abc12345`).
 
 ## Provenance helpers
 
