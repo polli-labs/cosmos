@@ -31,6 +31,7 @@ nav:
       - crop run flags (legacy reference): crop-reference.md
   - SDK: sdk.md
   - Provenance: provenance.md
+  - Lineage: lineage.md
   - Reference:
       - Encoder Behavior: encoder-behavior.md
       - ingest_run.v1.json: schemas/ingest_run.v1.json

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0 — Lineage graph + query surfaces (unreleased)
+- Add `cosmos lineage` CLI with subcommands: `build`, `upstream`, `downstream`, `chain`, `tree`.
+- Add `cosmos.sdk.lineage` module with `build_index()`, `LineageIndex`, `Node`, and `Edge` primitives
+  for programmatic lineage graph construction and traversal.
+- Lineage index is built deterministically from sidecar provenance files across ingest, crop, and
+  optimize stages, using existing sha256 join keys.
+- Supports artifact resolution by full sha256, sha256 prefix, or artifact ID.
+- All lineage commands support `--json`, `--plain`, and human output modes.
+- Add unit tests for index building, graph traversal, and CLI contract tests for all lineage commands.
+
 ## 0.6.0 — Clean CLI surface + ingest adapter contract (unreleased)
 - Remove the standalone `squarecrop` CLI entrypoint and keep a single command surface under `cosmos`.
 - Standardize operator workflows, docs, and tests on `cosmos crop ...` commands.
