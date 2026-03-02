@@ -28,23 +28,34 @@ def _load_or_build(dirs: list[Path]) -> LineageIndex:
     return build_index(*dirs)
 
 
-def _resolve_node(index: LineageIndex, identifier: str) -> Node | None:
-    """Resolve a node by sha256 (prefix match) or artifact ID."""
+def _resolve_node(index: LineageIndex, identifier: str) -> tuple[Node | None, str | None]:
+    """Resolve a node by sha256 (prefix match) or artifact ID.
+
+    Returns ``(node, error_message)`` where ``error_message`` is set for
+    actionable resolution failures (for example ambiguous SHA prefixes).
+    """
     # exact sha256 match
     if identifier in index.nodes:
-        return index.nodes[identifier]
+        return index.nodes[identifier], None
 
     # sha256 prefix match
     prefix_matches = [n for sha, n in index.nodes.items() if sha.startswith(identifier)]
     if len(prefix_matches) == 1:
-        return prefix_matches[0]
+        return prefix_matches[0], None
+    if len(prefix_matches) > 1:
+        sample = ", ".join(n.sha256[:12] for n in prefix_matches[:5])
+        return (
+            None,
+            f"ambiguous artifact identifier: {identifier!r}; "
+            f"matches {len(prefix_matches)} artifacts ({sample})",
+        )
 
     # artifact ID match (e.g., clip-CLIP1-abc12345)
     for node in index.nodes.values():
         if node.id == identifier:
-            return node
+            return node, None
 
-    return None
+    return None, None
 
 
 def _nodes_payload(nodes: list[Node]) -> list[dict[str, str]]:
@@ -137,9 +148,12 @@ def upstream(
     mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
     scan_dirs = dirs if dirs else [Path.cwd()]
     index = _load_or_build(scan_dirs)
-    node = _resolve_node(index, identifier)
+    node, resolution_error = _resolve_node(index, identifier)
     if node is None:
-        fail(f"artifact not found: {identifier}", code=ExitCode.INPUT_VALIDATION_ERROR)
+        fail(
+            resolution_error or f"artifact not found: {identifier}",
+            code=ExitCode.INPUT_VALIDATION_ERROR,
+        )
         return  # unreachable but keeps mypy happy
     results = index.upstream(node.sha256)
     _emit_nodes(results, mode=mode, label="upstream", root=node)
@@ -159,9 +173,12 @@ def downstream(
     mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
     scan_dirs = dirs if dirs else [Path.cwd()]
     index = _load_or_build(scan_dirs)
-    node = _resolve_node(index, identifier)
+    node, resolution_error = _resolve_node(index, identifier)
     if node is None:
-        fail(f"artifact not found: {identifier}", code=ExitCode.INPUT_VALIDATION_ERROR)
+        fail(
+            resolution_error or f"artifact not found: {identifier}",
+            code=ExitCode.INPUT_VALIDATION_ERROR,
+        )
         return
     results = index.downstream(node.sha256)
     _emit_nodes(results, mode=mode, label="downstream", root=node)
@@ -181,9 +198,12 @@ def cmd_chain(
     mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
     scan_dirs = dirs if dirs else [Path.cwd()]
     index = _load_or_build(scan_dirs)
-    node = _resolve_node(index, identifier)
+    node, resolution_error = _resolve_node(index, identifier)
     if node is None:
-        fail(f"artifact not found: {identifier}", code=ExitCode.INPUT_VALIDATION_ERROR)
+        fail(
+            resolution_error or f"artifact not found: {identifier}",
+            code=ExitCode.INPUT_VALIDATION_ERROR,
+        )
         return
     results = index.chain(node.sha256)
     _emit_nodes(results, mode=mode, label="chain", root=node)
@@ -203,9 +223,12 @@ def cmd_tree(
     mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
     scan_dirs = dirs if dirs else [Path.cwd()]
     index = _load_or_build(scan_dirs)
-    node = _resolve_node(index, identifier)
+    node, resolution_error = _resolve_node(index, identifier)
     if node is None:
-        fail(f"artifact not found: {identifier}", code=ExitCode.INPUT_VALIDATION_ERROR)
+        fail(
+            resolution_error or f"artifact not found: {identifier}",
+            code=ExitCode.INPUT_VALIDATION_ERROR,
+        )
         return
 
     tree_data = index.tree(node.sha256)

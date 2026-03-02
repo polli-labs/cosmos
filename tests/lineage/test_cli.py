@@ -155,6 +155,14 @@ def test_lineage_upstream_not_found(tmp_path: Path) -> None:
     assert result.exit_code == 3
 
 
+def test_lineage_upstream_ambiguous_prefix(tmp_path: Path) -> None:
+    _write_clip(tmp_path, "CLIP1", "abc111")
+    _write_clip(tmp_path, "CLIP2", "abc222")
+    result = runner.invoke(app, ["lineage", "upstream", "abc", "--in", str(tmp_path)])
+    assert result.exit_code == 3
+    assert "ambiguous artifact identifier" in (result.stderr or result.stdout)
+
+
 # ---------------------------------------------------------------------------
 # cosmos lineage downstream
 # ---------------------------------------------------------------------------
