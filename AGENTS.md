@@ -1,77 +1,124 @@
-# Agent Instructions (Cosmos repo)
+---
+title: "Cosmos — Agent/Dev Guide"
+doc_type: "agents"
+status: "active"
+owner: "polli-labs"
+last_modified: "2026-03-02T19:01:22.634Z"
+last_reviewed: "2026-03-02T19:01:22.634Z"
+scope: "repository:cosmos"
+---
 
-Purpose
-- Cosmos is a small, public-bound Python library and CLI set for: (a) ingesting COSM camera outputs into standard MP4 and (b) post‑processing these MP4s into square crops — with end‑to‑end provenance artifacts for reproducibility and downstream analytics.
+# Cosmos — Agent/Dev Guide
 
-Repo Layout
-- `cosmos/sdk/` — programmatic entry points (`ingest`, `crop`, provenance helpers). Treat this as the source of truth for business logic.
-- `cosmos/ingest/` — manifest parsing, preflight, validation, processing/encoding.
-- `cosmos/crop/` — square crop planning and execution; jobs file parser.
-- `cosmos/ffmpeg/` — encoder detection and argument presets; shared across ingest/crop.
-- `cosmos/cli/` — Typer CLI surfaces under `cosmos` (ingest, crop, optimize, provenance).
-- `schema/cosmos/` and `docs/schemas/` — JSON Schemas for run‑ and artifact‑level provenance.
+Repo-specific instructions for `polli-labs/cosmos`.
+Keep this file public-safe: no private customer/project context here.
 
-CLIs & SDK
-- One CLI, one SDK.
-  - `cosmos`: ingest/crop/optimize/provenance surfaces plus `pipeline` legacy alias (ingest → optional crop).
-  - SDK: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob`.
-- Keep TUI flows (Questionary) for interactive runs; always route business logic through `cosmos/sdk` so programmatic and CLI paths stay aligned.
+## Canonical model
 
-FFmpeg & Encoders
-- Require `ffmpeg` on PATH. Cross‑platform encoder preference:
-  - macOS: `h264_videotoolbox` → `libx264`
-  - Linux: `h264_nvenc` → `h264_qsv` → `h264_vaapi` → `libx264`
-  - Windows: `h264_nvenc` → `h264_qsv` → `h264_amf` → `libx264`
-- Use shared helpers in `cosmos/ffmpeg/*` to detect encoders and build args. Filter graphs are CPU‑bound; thread flags live in the SDK options and are logged alongside commandlines.
+- One CLI: `cosmos`
+- One SDK: `cosmos.sdk`
+- One instruction source: `AGENTS.md` (with `CLAUDE.md` as a symlink to `AGENTS.md` when possible)
 
-Provenance (v1)
-- Run‑level: `cosmos_ingest_run.v1.json`, `cosmos_crop_run.v1.json` (environment, encoder prefs, options/jobs).
-- Artifact‑level: `*.mp4.cosmos_clip.v1.json`, `*.mp4.cosmos_view.v1.json` with output sha256, video info, encode info.
-- Join keys: `view.source.sha256 == clip.output.sha256`. Keep artifacts next to outputs; copy them together.
-- CLI helpers under `cosmos provenance` subcommands for hashing, listing, and reverse lookups.
+Cosmos is a provenance-first video normalization toolkit:
+- ingest heterogeneous video layouts via adapters
+- generate deterministic web-ready derivatives
+- emit machine-joinable provenance sidecars
 
-Integrations (public‑safe)
-- Downstream: Ibrida consumes Cosmos outputs and may embed Cosmos clip provenance by `$ref` to the published schema. Dash (in the polli monorepo) surfaces processed clips/views. Keep provenance stable; it enables reliable joins across repos.
-- Types convergence: Medium‑term plan is to share artifact schemas across repos and (optionally) align OpenAPI models to `$ref` the assets‑hosted schemas. Keep schema `$id`s stable and bump versions on breaking changes.
+## v0.7.0 command surfaces
 
-Dev Workflow
-- Env: use `uv` for virtualenv + installs. Python 3.10+.
-- Quality: `make fmt` (ruff), `make lint`, `make typecheck` (mypy), `make test` (pytest).
-- E2E (optional): large fixture‑gated tests live under `tests/e2e_local` and are off by default; see Makefile `e2e-repro-*` targets.
+- Root commands:
+  - `cosmos process` (canonical ingest -> optional crop flow)
+  - `cosmos ingest`
+  - `cosmos crop`
+  - `cosmos optimize`
+  - `cosmos provenance`
+  - `cosmos lineage`
+- Hidden compatibility alias:
+  - `cosmos pipeline` (do not use in new docs/workflows)
 
-Porting Rules (when migrating older tools)
-- Rewrite imports `src.cosmos.*` → `cosmos.ingest.*`; remove `src/` layout assumptions.
-- Prefer shared FFmpeg helpers in `cosmos/ffmpeg/*`.
-- Keep TUI but ensure all work passes through SDK.
+## Repo map
 
-Monorepo Principles
-- No `src/` layout; packages live at repo root under `cosmos/`.
-- One CLI, one SDK over shared modules.
+- `cosmos/sdk/` — canonical business logic entry points
+  - `ingest`, `crop`, `optimize`, `preview`, `lineage`, `profiles`, `provenance`
+- `cosmos/ingest/` — adapter contract, adapter registry, source-layout-specific behavior
+- `cosmos/crop/` — square/rect crop execution and jobs parsing
+- `cosmos/preview/` — contact sheet + stacked-overlay preview generation
+- `cosmos/ffmpeg/` — ffmpeg/encoder detection and argument builders
+- `cosmos/cli/` — Typer app surfaces (thin wrappers over SDK)
+- `schema/cosmos/`, `docs/schemas/` — provenance schema contracts
+- `skills/cosmos/` — in-repo Cosmos skill package (release-critical)
 
-Issue Tracking & Labels
-- Use GitHub Issues (do not create a local `issues/` dir). Labels mirror `priority:*`, `status:*`, plus `comp:*` (ingest|crop|ffmpeg|tui|sdk).
+## Adapter + determinism model
 
-Notes & Non‑Goals
-- Avoid client‑specific references or paths in this repo. Keep documentation and examples generic and public‑ready.
-- Heavy fixtures for E2E are optional and not required for CI; local devs can enable them via environment flags noted in README and tests.
+- Ingest adapter contract: `IngestAdapter` in `cosmos.ingest.adapter`
+- Built-in adapters:
+  - `cosm` (COSM C360)
+  - `generic-media` (flat media directories)
+- Determinism profiles across ingest/crop/optimize:
+  - `strict`, `balanced`, `throughput`
+- Profile precedence:
+  - CLI `--profile` > `COSMOS_PROFILE` > command defaults
 
-Square-crop semantics (hard migration)
+## Provenance invariants
 
-- Prefer offsets: `offset_x`/`offset_y` are relative to available margin in [-1,1]; 0=center; +right/down.
-- Alternative absolute centers: `center_x`/`center_y` in [0,1]. If provided, offsets are ignored.
-- Jobs parser accepts either form; TUIs/CLIs route through the SDK.
+- Run-level sidecars:
+  - `cosmos_ingest_run.v1.json`
+  - `cosmos_crop_run.v1.json`
+  - `cosmos_optimize_run.v1.json`
+  - `cosmos_crop_preview_run.v1.json`
+- Artifact-level sidecars:
+  - `*.mp4.cosmos_clip.v1.json`
+  - `*.mp4.cosmos_view.v1.json`
+  - `*.mp4.cosmos_optimized.v1.json`
+- Join invariant:
+  - `view.source.sha256 == clip.output.sha256`
+- Lineage surface:
+  - `cosmos lineage {build,upstream,downstream,chain,tree}`
 
-Agent flows (non-interactive)
-- Ingest: `make run.ingest IN=/path/to/raw OUT=/path/to/out YES=1` (add optional WINDOW/CLIPS).
-- Crop: `make run.crop INPUT=clip.mp4 OUT=_work/out JOBS=job.json YES=1` or set `--offset-x/--offset-y --size` (offsets margin-relative [-1,1]; do not combine with centers).
-- Provenance mapping: `make run.provenance DIR=_work/out`.
-Example (Ladybird mirrored data): `cosmos crop run --input /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/*.mp4 --out-dir /Users/carbon/Data/dataZoo/clients/ladybird/batch_1/cosmos_v030 --jobs-file _work/ladybird_v030_jobs.json --yes`
+## Working rules
 
-Install (prod): `pip install polli-cosmos`
+- Keep CLI wrappers thin; route behavior through `cosmos/sdk/*`.
+- Preserve machine-safe output patterns (`--json`, `--plain`) and stable field names.
+- Keep explicit user overrides authoritative (for example forced encoders should fail loudly, not silently degrade).
+- Preserve crop semantics:
+  - square offsets: `offset_x` / `offset_y` in `[-1, 1]`
+  - rect geometry clamp/even-round behavior
+- Use shared ffmpeg helpers; avoid ad hoc command construction.
 
-Skill packaging and freshness (required)
-- Canonical in-repo Cosmos skill lives at `skills/cosmos/SKILL.md` with supporting refs in `skills/cosmos/references/`.
-- This skill must be reviewed and updated whenever feature work changes CLI, SDK, crop semantics, ffmpeg/bootstrap behavior, provenance fields/schemas, or output naming.
-- This review is also required for version bumps and release tag prep.
-- Follow the checklist in `skills/cosmos/references/maintenance-ritual.md` and leave receipts in the standing Linear maintenance issue.
-- Do not treat skill freshness as optional docs polish; it is a release-quality requirement for Cosmos.
+## Release ritual (critical)
+
+Before tagging any release, these are required:
+
+1. **Docs audit**
+  - Update affected docs pages and examples for new/changed surfaces.
+  - Run `uv run mkdocs build --strict`.
+2. **Skill audit**
+  - Update `skills/cosmos/SKILL.md` and relevant `skills/cosmos/references/*`.
+  - Follow `skills/cosmos/references/maintenance-ritual.md`.
+3. **Instruction audit**
+  - Refresh this template (`docs/org-kb/agents/templates/repos/cosmos/AGENTS.cosmos.md.mustache`) when behavior changed.
+  - Re-render `AGENTS.md` for cosmos and keep `CLAUDE.md` aligned (symlink preferred).
+4. **Code quality gate**
+  - `make fmt && make lint && make typecheck && make test`.
+5. **Receipts**
+  - Leave explicit receipts in Linear release/tracker issues (commands, PRs, runs, tags, release URL/assets).
+
+Treat docs + skill + AGENTS/CLAUDE freshness as release-quality requirements, not optional polish.
+
+## Canonical commands
+
+```bash
+make fmt && make lint && make typecheck && make test
+uv run mkdocs build --strict
+uv run cosmos --help
+uv run cosmos process --help
+uv run cosmos ingest run --help
+uv run cosmos crop run --help
+uv run cosmos optimize run --help
+uv run cosmos lineage --help
+```
+
+## Public/private boundary
+
+- Keep this repo’s AGENTS content public-safe.
+- If private cosmos integration context is needed, put it in polli monorepo partials (for example under `docs/org-kb/agents/templates/partials/`) and compose it only in private instruction targets.
