@@ -31,6 +31,8 @@ def test_ingest_run_provenance_uses_detected_manifest_for_cosm(
     # Avoid host/tool preflight concerns in this unit test.
     monkeypatch.setattr(ingest_mod, "preflight", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("cosmos.ingest.adapters.cosm._default_validate_system", lambda *_args: [])
+    # Keep this unit test independent from host ffmpeg availability.
+    monkeypatch.setattr(ingest_mod.VideoProcessor, "_detect_encoders", lambda _self: [])
 
     captured: dict[str, object] = {}
 
