@@ -21,6 +21,7 @@ from cosmos.sdk import (
 from pathlib import Path
 from cosmos.sdk.ingest import ingest, IngestOptions
 
+# COSM ingest (auto-detected from manifest XML)
 outputs = ingest(
     input_dir=Path("/data/cosm"),
     output_dir=Path("./out"),
@@ -38,10 +39,18 @@ outputs = ingest(
         dry_run=False,
     ),
 )
+
+# Generic media ingest (auto-detected from video files)
+outputs = ingest(
+    input_dir=Path("/data/field-videos"),
+    output_dir=Path("./out"),
+    options=IngestOptions(adapter="generic-media"),
+)
 ```
 
 Notes:
 
+- The `adapter` field selects the source layout adapter (`"cosm"`, `"generic-media"`). When `None` (default), the adapter is auto-detected from directory contents.
 - `dry_run=True` writes `cosmos_dry_run.json` (planned commands and clip plan).
 - Real runs produce `{clip}.mp4.cmd.txt` and `{clip}.mp4.log.txt` alongside outputs.
 - `clips=[...]` restricts ingest to a subset by clip name.

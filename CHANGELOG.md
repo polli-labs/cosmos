@@ -12,10 +12,20 @@ All notable changes to this project will be documented in this file.
 - All lineage commands support `--json`, `--plain`, and human output modes.
 - Add unit tests for index building, graph traversal, and CLI contract tests for all lineage commands.
 
-## 0.6.0 — Clean CLI surface (unreleased)
+## 0.6.0 — Clean CLI surface + ingest adapter contract (unreleased)
 - Remove the standalone `squarecrop` CLI entrypoint and keep a single command surface under `cosmos`.
 - Standardize operator workflows, docs, and tests on `cosmos crop ...` commands.
 - Keep square-crop behavior and SDK/runtime contracts unchanged while dropping CLI alias/deprecation paths.
+- **Add ingest adapter contract** (`IngestAdapter` Protocol) enabling multiple source layouts behind a single ingest pipeline:
+  - `cosmos.ingest.adapter` — typed contract: `ClipDescriptor`, `FfmpegInputSpec`, `IngestAdapter` Protocol.
+  - `cosmos.ingest.adapters.cosm` — COSM C360 adapter (manifest parsing, segment validation, quad-tile filter graph). Preserves all existing COSM ingest behavior as the default.
+  - `cosmos.ingest.adapters.generic_media` — generic media adapter for flat directories of video files (MP4, MOV, MKV, etc.) with per-file scale-only re-encode.
+  - `cosmos.ingest.adapters` — adapter registry with auto-detection (COSM when XML manifest present, generic-media otherwise).
+  - `cosmos.ingest.processor` — new `process_clip_with_spec()` accepts adapter-provided `FfmpegInputSpec`.
+  - `IngestOptions.adapter` — explicit adapter selection; `None` (default) = auto-detect.
+  - CLI: `--adapter` flag on `cosmos ingest run` for explicit adapter selection.
+  - Provenance: `adapter` field recorded in `IngestRun` options and dry-run plans.
+  - Tests: adapter protocol conformance, detection, resolution, COSM parity, generic-media paths, CLI contract tests for `--adapter`.
 
 ## 0.5.0 — Optimize command + provenance + cross-platform encoder hardening (2026-02-26)
 - Add `cosmos optimize run` CLI and SDK support (`OptimizeOptions`, `optimize`) for web-ready MP4 transforms with `auto|remux|transcode` modes.

@@ -17,7 +17,7 @@ from cosmos.sdk.ingest import IngestOptions
 from cosmos.sdk.ingest import ingest as sdk_ingest
 
 app = typer.Typer(help="Cosmos: ingest + crop + optimize toolkit")
-app.add_typer(ingest_app, name="ingest", help="COSM camera MP4 generation")
+app.add_typer(ingest_app, name="ingest", help="Video ingest (auto-detects source layout)")
 app.add_typer(crop_app, name="crop", help="Post-processing crop (square or rectangular)")
 app.add_typer(optimize_app, name="optimize", help="Web-ready MP4 optimization")
 app.add_typer(prov_app, name="provenance", help="Inspect provenance artifacts")

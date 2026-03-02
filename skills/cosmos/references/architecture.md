@@ -7,7 +7,7 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/sdk/__init__.py`
   - public exports for ingest/crop/preview.
 - `cosmos/sdk/ingest.py`
-  - ingest orchestrator and `IngestOptions`.
+  - ingest orchestrator and `IngestOptions`. Uses adapter contract for source-layout-specific logic.
 - `cosmos/sdk/crop.py`
   - crop orchestrator for `CropJob` and `RectCropJob`.
 - `cosmos/sdk/optimize.py`
@@ -19,12 +19,20 @@ Detailed module map for the current `cosmos` repo state.
 - `cosmos/sdk/lineage.py`
   - lineage index builder and graph traversal (DAG over provenance sidecars).
 
+- `cosmos/ingest/adapter.py`
+  - `IngestAdapter` Protocol, `ClipDescriptor`, `FfmpegInputSpec` — adapter contract.
+- `cosmos/ingest/adapters/__init__.py`
+  - adapter registry and `resolve_adapter()` auto-detection.
+- `cosmos/ingest/adapters/cosm.py`
+  - COSM C360 adapter: manifest parsing, segment validation, quad-tile filter graph.
+- `cosmos/ingest/adapters/generic_media.py`
+  - generic-media adapter: flat video directory, per-file clips, scale-only filter.
 - `cosmos/ingest/manifest.py`
-  - COSM manifest parsing and clip metadata.
+  - COSM manifest parsing and clip metadata (used by COSM adapter).
 - `cosmos/ingest/validation.py`
-  - system + segment validation.
+  - system + segment validation (used by COSM adapter).
 - `cosmos/ingest/processor.py`
-  - ffmpeg command generation and encode execution.
+  - ffmpeg command generation and encode execution. `process_clip_with_spec()` accepts adapter-provided `FfmpegInputSpec`.
 
 - `cosmos/crop/squarecrop.py`
   - square crop filter planning/execution.
@@ -91,3 +99,4 @@ Join key stability requirement:
 - Crop preview now supports contact sheets + stacked overlays with frame selectors and a GUI-ready preview-plan contract.
 - Ingest and crop paths honor ffmpeg resolution helpers (env override, cosmos-managed binary, PATH fallback).
 - Linux+NVIDIA bootstrap prompt can install NVENC-capable ffmpeg unless suppressed.
+- Ingest uses an adapter contract (`IngestAdapter` Protocol) for source-layout-specific logic. Built-in adapters: `cosm` (COSM C360 quad-tile) and `generic-media` (flat video directory). Auto-detected by default; overridable via `--adapter` CLI flag or `IngestOptions.adapter` SDK parameter.

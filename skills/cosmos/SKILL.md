@@ -13,13 +13,14 @@ x:
 
 # Cosmos
 
-Unified ingest + post-processing toolkit for COSM camera outputs with run-level and artifact-level provenance.
+Unified ingest + post-processing toolkit for video normalization with run-level and artifact-level provenance. Supports multiple source layouts via an adapter contract (COSM C360, generic media, extensible).
 
 ## Quick Facts
 
 - Version: 0.6.0
 - CLI: `cosmos` (including `cosmos crop ...` surfaces)
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions`; lineage: `from cosmos.sdk.lineage import build_index, LineageIndex`
+- Ingest adapter contract: `IngestAdapter` Protocol in `cosmos.ingest.adapter` — built-in adapters: `cosm`, `generic-media`. Auto-detected; overridable via `--adapter` CLI flag or `IngestOptions.adapter`.
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
 - Optimize support: `cosmos optimize run` (`auto|remux|transcode`) with run/artifact provenance (`cosmos_optimize_run.v1.json`, `*.cosmos_optimized.v1.json`)
 - Optimize auto mode runtime-probes hardware encoders and falls back to `libx264` when unavailable
