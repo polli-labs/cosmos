@@ -6,9 +6,9 @@ x:
   source_repo: "cosmos"
   source_branch: "main"
   source_commit: "HEAD"
-  package_version: "0.6.0"
+  package_version: "0.7.0"
   generator: "claude-code"
-  last_modified: "2026-02-27T21:38:44Z"
+  last_modified: "2026-03-02T04:47:00Z"
 ---
 
 # Cosmos
@@ -17,7 +17,7 @@ Unified ingest + post-processing toolkit for video normalization with run-level 
 
 ## Quick Facts
 
-- Version: 0.6.0
+- Version: 0.7.0
 - CLI: `cosmos` (including `cosmos crop ...` surfaces)
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions`; lineage: `from cosmos.sdk.lineage import build_index, LineageIndex`
 - Ingest adapter contract: `IngestAdapter` Protocol in `cosmos.ingest.adapter` — built-in adapters: `cosm`, `generic-media`. Auto-detected; overridable via `--adapter` CLI flag or `IngestOptions.adapter`.

@@ -2,30 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
-## 0.7.0 — Lineage graph + query surfaces (unreleased)
-- Add `cosmos lineage` CLI with subcommands: `build`, `upstream`, `downstream`, `chain`, `tree`.
-- Add `cosmos.sdk.lineage` module with `build_index()`, `LineageIndex`, `Node`, and `Edge` primitives
-  for programmatic lineage graph construction and traversal.
-- Lineage index is built deterministically from sidecar provenance files across ingest, crop, and
-  optimize stages, using existing sha256 join keys.
-- Supports artifact resolution by full sha256, sha256 prefix, or artifact ID.
-- All lineage commands support `--json`, `--plain`, and human output modes.
-- Add unit tests for index building, graph traversal, and CLI contract tests for all lineage commands.
+## 0.7.0 — Adapter extensibility + lineage graph + determinism profiles (2026-03-02)
+- Add ingest adapter contract (`IngestAdapter` Protocol) for multiple source layouts behind one normalized ingest pipeline.
+  - New typed adapter primitives in `cosmos.ingest.adapter` (`ClipDescriptor`, `FfmpegInputSpec`, `IngestAdapter`).
+  - Built-in adapters:
+    - `cosmos.ingest.adapters.cosm` (existing COSM C360 behavior preserved as default).
+    - `cosmos.ingest.adapters.generic_media` (flat directories of MP4/MOV/MKV/etc.).
+  - Adapter registry + auto-detection in `cosmos.ingest.adapters` with explicit override via `--adapter`.
+  - Processor support for adapter-provided specs via `process_clip_with_spec()`.
+  - Run-level provenance now records adapter selection in options/dry-run plans.
+- Add first-class lineage graph surfaces across ingest -> crop -> optimize provenance:
+  - `cosmos lineage` CLI (`build`, `upstream`, `downstream`, `chain`, `tree`) with `--json` and `--plain` contracts.
+  - `cosmos.sdk.lineage` module (`build_index()`, `LineageIndex`, `Node`, `Edge`) for programmatic traversal.
+  - Stable artifact resolution by sha256, sha256 prefix, or artifact ID; deterministic index output ordering.
+- Add determinism profiles (`strict`, `balanced`, `throughput`) across ingest/crop/optimize:
+  - Shared profile model/resolution in `cosmos.sdk.profiles`.
+  - Precedence: CLI `--profile` > `COSMOS_PROFILE` env > legacy behavior.
+  - Profile defaults remain overridable by explicit per-command flags.
+  - `strict` profile pins reproducibility-focused encode behavior (including encoder/thread/bitexact controls) and records profile metadata in provenance.
+- Expand test coverage across adapters, lineage, and profile integration/CLI contracts.
 
-## 0.6.0 — Clean CLI surface + ingest adapter contract (unreleased)
-- Remove the standalone `squarecrop` CLI entrypoint and keep a single command surface under `cosmos`.
-- Standardize operator workflows, docs, and tests on `cosmos crop ...` commands.
-- Keep square-crop behavior and SDK/runtime contracts unchanged while dropping CLI alias/deprecation paths.
-- **Add ingest adapter contract** (`IngestAdapter` Protocol) enabling multiple source layouts behind a single ingest pipeline:
-  - `cosmos.ingest.adapter` — typed contract: `ClipDescriptor`, `FfmpegInputSpec`, `IngestAdapter` Protocol.
-  - `cosmos.ingest.adapters.cosm` — COSM C360 adapter (manifest parsing, segment validation, quad-tile filter graph). Preserves all existing COSM ingest behavior as the default.
-  - `cosmos.ingest.adapters.generic_media` — generic media adapter for flat directories of video files (MP4, MOV, MKV, etc.) with per-file scale-only re-encode.
-  - `cosmos.ingest.adapters` — adapter registry with auto-detection (COSM when XML manifest present, generic-media otherwise).
-  - `cosmos.ingest.processor` — new `process_clip_with_spec()` accepts adapter-provided `FfmpegInputSpec`.
-  - `IngestOptions.adapter` — explicit adapter selection; `None` (default) = auto-detect.
-  - CLI: `--adapter` flag on `cosmos ingest run` for explicit adapter selection.
-  - Provenance: `adapter` field recorded in `IngestRun` options and dry-run plans.
-  - Tests: adapter protocol conformance, detection, resolution, COSM parity, generic-media paths, CLI contract tests for `--adapter`.
+## 0.6.0 — Clean CLI surface + public-readiness baseline (2026-02-27)
+- Remove the standalone `squarecrop` CLI entrypoint and consolidate command usage under `cosmos`.
+- Standardize docs/examples and workflow guidance on `cosmos crop ...` surfaces.
+- Keep square-crop SDK/runtime semantics unchanged while removing obsolete CLI alias surface.
+- Add public-readiness governance artifacts (`SECURITY.md`, `CONTRIBUTING.md`, issue/PR templates) and align docs/skill metadata with the unified CLI.
 
 ## 0.5.0 — Optimize command + provenance + cross-platform encoder hardening (2026-02-26)
 - Add `cosmos optimize run` CLI and SDK support (`OptimizeOptions`, `optimize`) for web-ready MP4 transforms with `auto|remux|transcode` modes.
