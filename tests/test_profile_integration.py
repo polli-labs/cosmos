@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,10 @@ crop_mod = importlib.import_module("cosmos.sdk.crop")
 runner = CliRunner()
 
 
+def _plain_help(text: str) -> str:
+    return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+
 # ---------------------------------------------------------------------------
 # CLI: --profile flag visible and accepted
 # ---------------------------------------------------------------------------
@@ -24,24 +29,40 @@ runner = CliRunner()
 
 class TestProfileCLIFlags:
     def test_optimize_help_shows_profile_flag(self) -> None:
-        result = runner.invoke(app, ["optimize", "run", "--help"])
+        result = runner.invoke(
+            app,
+            ["optimize", "run", "--help"],
+            env={"NO_COLOR": "1", "COLUMNS": "200"},
+        )
         assert result.exit_code == 0
-        assert "--profile" in result.stdout
+        assert "--profile" in _plain_help(result.stdout)
 
     def test_ingest_help_shows_profile_flag(self) -> None:
-        result = runner.invoke(app, ["ingest", "run", "--help"])
+        result = runner.invoke(
+            app,
+            ["ingest", "run", "--help"],
+            env={"NO_COLOR": "1", "COLUMNS": "200"},
+        )
         assert result.exit_code == 0
-        assert "--profile" in result.stdout
+        assert "--profile" in _plain_help(result.stdout)
 
     def test_crop_help_shows_profile_flag(self) -> None:
-        result = runner.invoke(app, ["crop", "run", "--help"])
+        result = runner.invoke(
+            app,
+            ["crop", "run", "--help"],
+            env={"NO_COLOR": "1", "COLUMNS": "200"},
+        )
         assert result.exit_code == 0
-        assert "--profile" in result.stdout
+        assert "--profile" in _plain_help(result.stdout)
 
     def test_process_help_shows_profile_flag(self) -> None:
-        result = runner.invoke(app, ["process", "--help"])
+        result = runner.invoke(
+            app,
+            ["process", "--help"],
+            env={"NO_COLOR": "1", "COLUMNS": "200"},
+        )
         assert result.exit_code == 0
-        assert "--profile" in result.stdout
+        assert "--profile" in _plain_help(result.stdout)
 
 
 # ---------------------------------------------------------------------------
