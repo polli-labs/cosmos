@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Literal, cast
 
@@ -229,18 +229,7 @@ def optimize(
     if profile is not None:
         # Apply profile defaults where no explicit option was set
         if options.encoder is None and profile.pinned_encoder is not None:
-            options = OptimizeOptions(
-                mode=options.mode,
-                target_height=options.target_height,
-                fps=options.fps,
-                crf=options.crf,
-                encoder=profile.pinned_encoder,
-                faststart=options.faststart,
-                suffix=options.suffix,
-                force=options.force,
-                dry_run=options.dry_run,
-                profile=options.profile,
-            )
+            options = replace(options, encoder=profile.pinned_encoder)
     profile_threads = profile.threads if profile else None
     profile_bitexact = profile.bitexact if profile else False
 
