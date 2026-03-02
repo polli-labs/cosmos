@@ -7,7 +7,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 ### Ingest
 
 - `ingest(input_dir, output_dir, *, manifest, options) -> list[Path]`
-- `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, filter-thread knobs, and source adapter selection (`adapter` field).
+- `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, filter-thread knobs, determinism profile (`profile`), and source adapter selection (`adapter` field).
 - Adapter contract: `IngestAdapter` Protocol in `cosmos.ingest.adapter` — defines `detect()`, `discover_clips()`, `validate_clip()`, `build_ffmpeg_spec()`, `validate_system()`.
 - Built-in adapters: `cosm` (COSM C360), `generic-media` (flat video directory). Auto-detected by default; explicit via `IngestOptions.adapter` or CLI `--adapter`.
 
@@ -65,12 +65,20 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 ### Root app
 
+- `cosmos process ...` (canonical ingest -> optional crop workflow)
 - `cosmos ingest ...` (supports `--adapter` for source layout selection)
 - `cosmos crop ...`
 - `cosmos optimize ...`
 - `cosmos provenance ...`
 - `cosmos lineage ...`
-- `cosmos pipeline ...` (legacy convenience path)
+- hidden legacy alias: `cosmos pipeline ...` (deprecated compatibility command; do not use in new docs/examples)
+
+### Process command
+
+- `cosmos process <input_dir> <output_dir>`
+  - flow flags: `--post-process`, `--crop-config`
+  - run-control flags: `--dry-run`, `--clip`, `--profile`
+  - output flags: `--json|--plain`
 
 ### Crop commands
 
@@ -95,6 +103,12 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - determinism: `--profile strict|balanced|throughput`
   - safety/io: `--faststart`, `--suffix`, `--force`, `--yes`, `--dry-run`, `--json|--plain`
 
+### Determinism profile precedence
+
+- `--profile` CLI flag has highest precedence.
+- `COSMOS_PROFILE` environment variable is next.
+- Per-command defaults apply when neither CLI nor env is set.
+
 ### Lineage commands
 
 - `cosmos lineage build <dirs...> [--output FILE] [--json|--plain]`
@@ -111,9 +125,10 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 ### Non-interactive safety
 
-- `--yes` to suppress prompts.
-- `--skip-ffmpeg-check` to suppress bootstrap prompt.
+- `--yes` to suppress prompts on interactive commands that expose it (for example `ingest run`, `crop run`, `optimize run`).
+- `--skip-ffmpeg-check` to suppress bootstrap prompt where supported.
 - `--dry-run` must avoid side-effectful encode execution.
+- machine-safe mode: use `--json` for structured payloads, keep parseable data on stdout.
 
 ## Exit-code policy (target contract for redesign)
 
