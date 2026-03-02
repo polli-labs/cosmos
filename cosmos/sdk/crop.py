@@ -82,10 +82,24 @@ def crop(
     """Return list of cropped video paths.
 
     Accepts either square CropJob list or rectangular RectCropJob list.
+
+    ``ffmpeg_opts`` may include:
+      - ``dry_run`` (bool)
+      - ``prefer_hevc_hw`` (bool)
+      - ``profile`` (str | None) – determinism profile name
     """
+    from cosmos.sdk.profiles import resolve_profile
+
     out_dir.mkdir(parents=True, exist_ok=True)
-    dry_run = bool((ffmpeg_opts or {}).get("dry_run", False))
-    prefer_hevc_hw = bool((ffmpeg_opts or {}).get("prefer_hevc_hw", False))
+    opts = ffmpeg_opts or {}
+    dry_run = bool(opts.get("dry_run", False))
+    prefer_hevc_hw = bool(opts.get("prefer_hevc_hw", False))
+
+    # Resolve determinism profile for crop
+    profile = resolve_profile(str(opts["profile"]) if opts.get("profile") else None)
+    encoder_override = profile.pinned_encoder if profile else None
+    threads = profile.threads if profile else None
+    bitexact = profile.bitexact if profile else False
 
     if not jobs:
         return _crop_square(
@@ -94,6 +108,9 @@ def crop(
             out_dir,
             dry_run=dry_run,
             prefer_hevc_hw=prefer_hevc_hw,
+            encoder_override=encoder_override,
+            threads=threads,
+            bitexact=bitexact,
         )
 
     # Detect crop mode from job types and enforce homogeneous lists.
@@ -105,6 +122,9 @@ def crop(
             out_dir,
             dry_run=dry_run,
             prefer_hevc_hw=prefer_hevc_hw,
+            encoder_override=encoder_override,
+            threads=threads,
+            bitexact=bitexact,
         )
 
     if all(isinstance(j, CropJob) for j in jobs):
@@ -115,6 +135,9 @@ def crop(
             out_dir,
             dry_run=dry_run,
             prefer_hevc_hw=prefer_hevc_hw,
+            encoder_override=encoder_override,
+            threads=threads,
+            bitexact=bitexact,
         )
 
     raise ValueError("Jobs must be all CropJob or all RectCropJob.")
@@ -127,6 +150,9 @@ def _crop_rect(
     *,
     dry_run: bool,
     prefer_hevc_hw: bool,
+    encoder_override: str | None = None,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> list[Path]:
     jobs_summary = [
         {
@@ -158,7 +184,16 @@ def _crop_rect(
             )
             out_name = f"{job.view_id}.mp4" if job.view_id else f"crop_{vi:03d}_rect{ji:02d}.mp4"
             out = out_dir / out_name
-            result = run_rect_crop(src, out, spec, dry_run=dry_run, prefer_hevc_hw=prefer_hevc_hw)
+            result = run_rect_crop(
+                src,
+                out,
+                spec,
+                dry_run=dry_run,
+                prefer_hevc_hw=prefer_hevc_hw,
+                encoder_override=encoder_override,
+                threads=threads,
+                bitexact=bitexact,
+            )
             if dry_run:
                 out.write_bytes(b"")
             else:
@@ -220,6 +255,9 @@ def _crop_square(
     *,
     dry_run: bool,
     prefer_hevc_hw: bool,
+    encoder_override: str | None = None,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> list[Path]:
     jobs_summary = [
         {
@@ -252,7 +290,14 @@ def _crop_square(
             for ti, (_src, _flt) in enumerate(_plan):
                 out = out_dir / f"crop_{vi:03d}_job{ji:02d}_t{ti:02d}_s{spec.size}.mp4"
                 result = run_square_crop(
-                    src, out, spec, dry_run=dry_run, prefer_hevc_hw=prefer_hevc_hw
+                    src,
+                    out,
+                    spec,
+                    dry_run=dry_run,
+                    prefer_hevc_hw=prefer_hevc_hw,
+                    encoder_override=encoder_override,
+                    threads=threads,
+                    bitexact=bitexact,
                 )
                 if dry_run:
                     out.write_bytes(b"")

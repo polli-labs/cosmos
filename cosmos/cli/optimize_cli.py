@@ -131,6 +131,14 @@ def run(
     dry_run: Annotated[
         bool, typer.Option("--dry-run", help="Emit planned commands and outputs without execution")
     ] = False,
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            "--profile",
+            help="Determinism profile (strict|balanced|throughput). "
+            "Controls encoder, threads, and bitexact flags for reproducibility.",
+        ),
+    ] = None,
     skip_ffmpeg_check: Annotated[
         bool,
         typer.Option(
@@ -178,6 +186,7 @@ def run(
             suffix=suffix,
             force=force,
             dry_run=dry_run,
+            profile=profile,
         )
         results = optimize(resolved_inputs, resolved_out_dir, options=options)
     except Exception as exc:  # noqa: BLE001

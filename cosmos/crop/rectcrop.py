@@ -82,6 +82,8 @@ def _build_rect_crop_args(
     crop_filter: str,
     start: float | None = None,
     end: float | None = None,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> list[str]:
     """Build ffmpeg args for a rectangular crop — mirrors build_square_crop_args."""
     args: list[str] = [resolve_ffmpeg_path(), "-y"]
@@ -101,8 +103,12 @@ def _build_rect_crop_args(
         "-crf",
         "18",
         "-an",
-        str(output_path),
     ]
+    if threads is not None and encoder == "libx264":
+        args += ["-threads", str(threads), "-x264-params", f"threads={threads}"]
+    if bitexact:
+        args += ["-bitexact", "-fflags", "+bitexact"]
+    args.append(str(output_path))
     return args
 
 
@@ -115,6 +121,9 @@ def run_rect_crop(
     source_h: int | None = None,
     prefer_hevc_hw: bool = False,
     dry_run: bool = False,
+    encoder_override: str | None = None,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> CropRunResult:
     """Run or return ffmpeg args for a single rectangular crop job."""
     # Probe source dimensions if not provided
@@ -128,11 +137,12 @@ def run_rect_crop(
         source_w = probed_w
         source_h = probed_h
 
-    encoder, attempted = (
-        ("libx264", "libx264")
-        if dry_run
-        else choose_encoder_for_video(input_video, prefer_hevc_hw=prefer_hevc_hw)
-    )
+    if encoder_override is not None:
+        encoder, attempted = encoder_override, encoder_override
+    elif dry_run:
+        encoder, attempted = "libx264", "libx264"
+    else:
+        encoder, attempted = choose_encoder_for_video(input_video, prefer_hevc_hw=prefer_hevc_hw)
 
     crop_filter = build_rect_crop_filter(spec, source_w, source_h)
 
@@ -144,6 +154,8 @@ def run_rect_crop(
             crop_filter=crop_filter,
             start=spec.start,
             end=spec.end,
+            threads=threads,
+            bitexact=bitexact,
         )
 
     args = _build_args(encoder)

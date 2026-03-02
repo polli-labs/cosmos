@@ -12,6 +12,8 @@ from cosmos.sdk import (
     CropJob,
     optimize,
     OptimizeOptions,
+    DeterminismProfile,
+    resolve_profile,
 )
 ```
 
@@ -126,6 +128,7 @@ outputs = optimize(
         faststart=True,
         suffix="_optimized",
         dry_run=False,
+        profile="strict",    # optional: strict|balanced|throughput
     ),
 )
 ```
@@ -135,6 +138,9 @@ Optimize behavior and artifacts:
 - `mode="auto"` chooses remux unless transform flags imply transcode.
 - Auto-selected hardware encoders are runtime-probed; Cosmos falls back to `libx264`
   when a hardware path is unavailable at runtime.
+- `profile` activates a determinism profile (`strict`, `balanced`, `throughput`). The
+  `strict` profile pins `libx264`, 4 threads, and bitexact flags for cross-host reproducibility.
+  Per-field overrides (e.g. `encoder=`) always take precedence over profile defaults.
 - Run-level artifact: `cosmos_optimize_run.v1.json`
 - Output artifact (non-dry-run): `*.mp4.cosmos_optimized.v1.json`
 - Dry-run plan: `cosmos_optimize_dry_run.json`

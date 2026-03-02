@@ -105,8 +105,10 @@ def test_optimize_transcode_falls_back_to_x264_when_auto_hw_fails(
         fps: float | None,
         crf: int | None,
         faststart: bool,
+        threads: int | None = None,
+        bitexact: bool = False,
     ) -> list[str]:
-        _ = (input_path, output_path, target_height, fps, crf, faststart)
+        _ = (input_path, output_path, target_height, fps, crf, faststart, threads, bitexact)
         built_encoders.append(encoder)
         return ["ffmpeg", encoder]
 

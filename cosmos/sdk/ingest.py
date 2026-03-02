@@ -41,6 +41,7 @@ class IngestOptions:
     decode: str = "auto"  # auto|hw|sw
     window_seconds: float | None = None
     adapter: str | None = None  # explicit adapter name; None = auto-detect
+    profile: str | None = None  # determinism profile name; None = legacy behaviour
 
 
 def ingest(  # noqa: C901
@@ -103,6 +104,23 @@ def ingest(  # noqa: C901
         if isinstance(maybe_manifest, Path):
             manifest_for_run = maybe_manifest
 
+    # -- resolve determinism profile ------------------------------------------
+    from cosmos.sdk.profiles import resolve_profile
+
+    profile = resolve_profile(options.profile)
+
+    # Apply profile defaults where the caller did not set an explicit value.
+    effective_filter_threads = options.filter_threads
+    effective_fc_threads = options.filter_complex_threads
+    effective_scale_filter = options.scale_filter
+    if profile is not None:
+        if effective_filter_threads is None and profile.threads is not None:
+            effective_filter_threads = profile.threads
+        if effective_fc_threads is None and profile.threads is not None:
+            effective_fc_threads = profile.threads
+        if effective_scale_filter is None and profile.scale_filter is not None:
+            effective_scale_filter = profile.scale_filter
+
     # -- prepare processor (encoder detection, options) -----------------------
     mode_map = {
         "quality": ProcessingMode.QUALITY,
@@ -112,7 +130,7 @@ def ingest(  # noqa: C901
         "minimal": ProcessingMode.MINIMAL,
     }
     quality = mode_map.get(options.quality_mode.lower(), ProcessingMode.BALANCED)
-    scale_filter = options.scale_filter or (
+    scale_filter = effective_scale_filter or (
         "lanczos" if quality == ProcessingMode.QUALITY else "bicubic"
     )
     proc_opts = ProcessingOptions(
@@ -123,29 +141,34 @@ def ingest(  # noqa: C901
     )
     po = cast(Any, proc_opts)
     po.scale_filter = scale_filter
-    po.filter_threads = options.filter_threads
-    po.filter_complex_threads = options.filter_complex_threads
+    po.filter_threads = effective_filter_threads
+    po.filter_complex_threads = effective_fc_threads
     po.decode = options.decode
     po.window_seconds = options.window_seconds
+    po.bitexact = profile.bitexact if profile else False
+    po.pinned_encoder = profile.pinned_encoder if profile else None
     processor = VideoProcessor(output_dir, proc_opts)
 
     # -- run-level provenance -------------------------------------------------
+    prov_options: dict[str, Any] = {
+        "adapter": adapter.name,
+        "resolution": [options.width, options.height],
+        "quality_mode": options.quality_mode,
+        "low_memory": options.low_memory,
+        "crf": options.crf,
+        "scale_filter": scale_filter,
+        "filter_threads": effective_filter_threads,
+        "filter_complex_threads": effective_fc_threads,
+        "decode": options.decode,
+        "window_seconds": options.window_seconds,
+    }
+    if profile is not None:
+        prov_options["profile"] = profile.to_dict()
     ingest_run_id, _run_path = emit_ingest_run(
         output_dir=output_dir,
         input_dir=input_dir,
         manifest_path=manifest_for_run,
-        options={
-            "adapter": adapter.name,
-            "resolution": [options.width, options.height],
-            "quality_mode": options.quality_mode,
-            "low_memory": options.low_memory,
-            "crf": options.crf,
-            "scale_filter": scale_filter,
-            "filter_threads": options.filter_threads,
-            "filter_complex_threads": options.filter_complex_threads,
-            "decode": options.decode,
-            "window_seconds": options.window_seconds,
-        },
+        options=prov_options,
         encoders_preference=[e.value for e in processor._available_encoders],
     )
 
