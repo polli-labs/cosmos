@@ -1,6 +1,21 @@
 # Encoder Behavior by Platform
 
-This page documents Cosmos encoder selection, ffmpeg resolution order, and known platform caveats.
+This page documents Cosmos encoder selection, ffmpeg resolution order, determinism profiles, and known platform caveats.
+
+## Determinism profiles
+
+Cosmos supports named determinism profiles that control encoder selection, thread pinning, and bitexact flags:
+
+| Profile      | Encoder policy   | Threads | Scale filter | Bitexact | Use case                        |
+|-------------|-----------------|---------|-------------|----------|--------------------------------|
+| `strict`    | `libx264` only  | 4       | lanczos     | yes      | CI, cross-host comparison       |
+| `balanced`  | auto-fallback   | auto    | default     | no       | Default (same as no profile)    |
+| `throughput`| prefer-hardware | auto    | bicubic     | no       | Bulk processing                 |
+
+Set via CLI `--profile strict`, SDK `profile="strict"`, or env `COSMOS_PROFILE=strict`.
+
+Resolution precedence: explicit `--profile` > `COSMOS_PROFILE` env > `None` (legacy).
+Per-field CLI overrides (e.g. `--encoder`, `--crf`) always win over profile defaults.
 
 ## Current encoder preference policy
 

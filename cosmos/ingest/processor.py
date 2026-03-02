@@ -87,7 +87,15 @@ class VideoProcessor:
         self.output_dir = output_dir
         self.options = options
         self.logger = logger or logging.getLogger(__name__)
-        self._available_encoders = self._detect_encoders()
+        pinned = getattr(options, "pinned_encoder", None)
+        if pinned is not None:
+            # Profile-pinned encoder: skip detection, use exactly the pinned value
+            try:
+                self._available_encoders = [EncoderType(pinned)]
+            except ValueError:
+                self._available_encoders = [EncoderType.SOFTWARE_X264]
+        else:
+            self._available_encoders = self._detect_encoders()
 
     def _detect_encoders(self) -> list[EncoderType]:
         """Probe ffmpeg encoders and order by global preference.
@@ -230,6 +238,8 @@ class VideoProcessor:
                         cmd += ["-filter_complex_threads", str(fct)]
                     cmd.extend(self._get_encoder_settings(encoder, thread_count))
                     cmd.extend(memory_opts)
+                    if getattr(opt, "bitexact", False):
+                        cmd += ["-bitexact", "-fflags", "+bitexact"]
                     cmd.append(str(output_path))
 
                     creation_flags = CREATE_NO_WINDOW
@@ -359,6 +369,8 @@ class VideoProcessor:
                         cmd += ["-filter_complex_threads", str(fct)]
                     cmd.extend(self._get_encoder_settings(encoder, thread_count))
                     cmd.extend(memory_opts)
+                    if getattr(opt, "bitexact", False):
+                        cmd += ["-bitexact", "-fflags", "+bitexact"]
                     cmd.extend(spec.extra_output_args)
                     cmd.append(str(output_path))
 

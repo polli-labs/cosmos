@@ -52,6 +52,14 @@ def run(
     window_seconds: Annotated[
         float | None, typer.Option("--window", help="Process only first N seconds")
     ] = None,
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            "--profile",
+            help="Determinism profile (strict|balanced|throughput). "
+            "Controls encoder, threads, and bitexact flags for reproducibility.",
+        ),
+    ] = None,
     skip_ffmpeg_check: Annotated[
         bool,
         typer.Option(
@@ -95,6 +103,7 @@ def run(
             decode=decode,
             window_seconds=window_seconds,
             adapter=adapter,
+            profile=profile,
         )
         results = ingest(input_dir, output_dir, manifest=None, options=options)
     except Exception as exc:  # noqa: BLE001

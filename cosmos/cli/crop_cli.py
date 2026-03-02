@@ -322,6 +322,14 @@ def run(
             help="On macOS, try hevc_videotoolbox before H.264 hardware when available (useful for >4K inputs).",
         ),
     ] = False,
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            "--profile",
+            help="Determinism profile (strict|balanced|throughput). "
+            "Controls encoder, threads, and bitexact flags for reproducibility.",
+        ),
+    ] = None,
     skip_ffmpeg_check: Annotated[
         bool,
         typer.Option(
@@ -371,7 +379,11 @@ def run(
             videos,
             parsed_jobs,
             resolved_out_dir,
-            ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
+            ffmpeg_opts={
+                "dry_run": dry_run,
+                "prefer_hevc_hw": prefer_hevc_hw,
+                "profile": profile,
+            },
         )
     except Exception as exc:  # noqa: BLE001
         raise_mapped_exit(exc)

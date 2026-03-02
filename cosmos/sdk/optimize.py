@@ -32,6 +32,7 @@ class OptimizeOptions:
     suffix: str = "_optimized"
     force: bool = False
     dry_run: bool = False
+    profile: str | None = None  # determinism profile name; None = legacy behaviour
 
 
 def _normalize_mode(mode: str) -> OptimizeMode:
@@ -93,6 +94,8 @@ def _build_transcode_command(
     *,
     options: OptimizeOptions,
     encoder: str,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> list[str]:
     return build_optimize_transcode_args(
         src,
@@ -102,6 +105,8 @@ def _build_transcode_command(
         fps=options.fps,
         crf=options.crf,
         faststart=options.faststart,
+        threads=threads,
+        bitexact=bitexact,
     )
 
 
@@ -111,6 +116,8 @@ def _plan_input(
     *,
     mode: OptimizeMode,
     options: OptimizeOptions,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> tuple[
     Path,
     Literal["remux", "transcode"],
@@ -126,7 +133,9 @@ def _plan_input(
         )
 
     if resolved_mode == "remux":
-        cmd = build_optimize_remux_args(src, out_path, faststart=options.faststart)
+        cmd = build_optimize_remux_args(
+            src, out_path, faststart=options.faststart, bitexact=bitexact
+        )
         return out_path, resolved_mode, cmd, {"impl": "copy", "codec": "copy"}, None
 
     if options.encoder is not None:
@@ -134,7 +143,14 @@ def _plan_input(
         attempted_encoder = options.encoder
     else:
         selected_encoder, attempted_encoder = choose_encoder_for_video(src)
-    cmd = _build_transcode_command(src, out_path, options=options, encoder=selected_encoder)
+    cmd = _build_transcode_command(
+        src,
+        out_path,
+        options=options,
+        encoder=selected_encoder,
+        threads=threads,
+        bitexact=bitexact,
+    )
     encode_info: dict[str, object] = {
         "impl": selected_encoder,
         "codec": selected_encoder,
@@ -154,6 +170,8 @@ def _run_with_optional_fallback(
     cmd: list[str],
     encode_info: dict[str, object] | None,
     attempted_encoder: str | None,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> dict[str, object] | None:
     try:
         subprocess.run(cmd, check=True)  # noqa: S603
@@ -170,7 +188,14 @@ def _run_with_optional_fallback(
         logger.warning(
             "hardware encoder %s failed (%s); retrying with libx264", attempted_encoder, exc
         )
-        fallback_cmd = _build_transcode_command(src, out_path, options=options, encoder="libx264")
+        fallback_cmd = _build_transcode_command(
+            src,
+            out_path,
+            options=options,
+            encoder="libx264",
+            threads=threads,
+            bitexact=bitexact,
+        )
         subprocess.run(fallback_cmd, check=True)  # noqa: S603
         return {
             "impl": "libx264",
@@ -186,6 +211,8 @@ def optimize(
     *,
     options: OptimizeOptions,
 ) -> list[Path]:
+    from cosmos.sdk.profiles import DeterminismProfile, resolve_profile
+
     mode = _validate_options(options)
     if not input_videos:
         raise ValueError("At least one input video is required")
@@ -197,7 +224,27 @@ def optimize(
     ensure_dir(out_dir)
     ensure_ffmpeg_available()
 
-    run_options = {
+    # -- resolve determinism profile ------------------------------------------
+    profile: DeterminismProfile | None = resolve_profile(options.profile)
+    if profile is not None:
+        # Apply profile defaults where no explicit option was set
+        if options.encoder is None and profile.pinned_encoder is not None:
+            options = OptimizeOptions(
+                mode=options.mode,
+                target_height=options.target_height,
+                fps=options.fps,
+                crf=options.crf,
+                encoder=profile.pinned_encoder,
+                faststart=options.faststart,
+                suffix=options.suffix,
+                force=options.force,
+                dry_run=options.dry_run,
+                profile=options.profile,
+            )
+    profile_threads = profile.threads if profile else None
+    profile_bitexact = profile.bitexact if profile else False
+
+    run_options: dict[str, object] = {
         "mode": mode,
         "target_height": options.target_height,
         "fps": options.fps,
@@ -208,6 +255,8 @@ def optimize(
         "force": options.force,
         "dry_run": options.dry_run,
     }
+    if profile is not None:
+        run_options["profile"] = profile.to_dict()
     input_summary = [
         {
             "path": str(src),
@@ -230,6 +279,8 @@ def optimize(
             out_dir,
             mode=mode,
             options=options,
+            threads=profile_threads,
+            bitexact=profile_bitexact,
         )
 
         transform: dict[str, object] = {
@@ -260,6 +311,8 @@ def optimize(
                 cmd=cmd,
                 encode_info=encode_info,
                 attempted_encoder=attempted_encoder,
+                threads=profile_threads,
+                bitexact=profile_bitexact,
             )
             emit_optimized_artifact(
                 optimize_run_id=optimize_run_id,

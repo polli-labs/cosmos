@@ -76,6 +76,7 @@ Key flags:
 - Inputs/output: `--input` (repeatable), `--out-dir`
 - Mode/transforms: `--mode`, `--target-height`, `--fps`, `--crf`, `--encoder`
 - Safety and naming: `--faststart/--no-faststart`, `--suffix`, `--force`
+- Determinism: `--profile strict|balanced|throughput` (controls encoder, threads, bitexact)
 - Automation: `--yes/--no-input`, `--dry-run`, `--skip-ffmpeg-check`, `--json|--plain`
 
 Optimize artifacts:

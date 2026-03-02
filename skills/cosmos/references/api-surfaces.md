@@ -35,6 +35,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - `mode`: `auto|remux|transcode`
   - transform flags: `target_height`, `fps`, `crf`, optional forced `encoder`
   - safety flags: `force`, `dry_run`, `faststart`, `suffix`
+  - `profile`: determinism profile (`strict|balanced|throughput`) — controls encoder pinning, thread count, and bitexact flags
 - Optimize outputs emit:
   - run-level `cosmos_optimize_run.v1.json`
   - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
@@ -80,6 +81,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 - `cosmos optimize run`
   - modes: `--mode auto|remux|transcode`
   - transforms: `--target-height`, `--fps`, `--crf`, `--encoder`
+  - determinism: `--profile strict|balanced|throughput`
   - safety/io: `--faststart`, `--suffix`, `--force`, `--yes`, `--dry-run`, `--json|--plain`
 
 ### Non-interactive safety

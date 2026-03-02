@@ -43,7 +43,16 @@ def test_multi_input_multi_job_writes_all(tmp_path: Path, monkeypatch: pytest.Mo
 
     calls: list[str] = []
 
-    def fake_run_square_crop(_src, out, spec, dry_run=False, prefer_hevc_hw=False):
+    def fake_run_square_crop(
+        _src,
+        out,
+        spec,
+        dry_run=False,
+        prefer_hevc_hw=False,
+        encoder_override=None,
+        threads=None,
+        bitexact=False,
+    ):
         out.write_bytes(b"out")
         assert prefer_hevc_hw is False
         calls.append(out.name)
@@ -70,7 +79,16 @@ def test_prefer_hevc_flag_passes_to_runner(tmp_path: Path, monkeypatch: pytest.M
 
     seen_prefer_hevc: list[bool] = []
 
-    def fake_run_square_crop(_src, out, spec, dry_run=False, prefer_hevc_hw=False):
+    def fake_run_square_crop(
+        _src,
+        out,
+        spec,
+        dry_run=False,
+        prefer_hevc_hw=False,
+        encoder_override=None,
+        threads=None,
+        bitexact=False,
+    ):
         out.write_bytes(b"out")
         seen_prefer_hevc.append(prefer_hevc_hw)
         from cosmos.crop.squarecrop import CropRunResult

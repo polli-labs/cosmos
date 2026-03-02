@@ -24,6 +24,7 @@ Unified ingest + post-processing toolkit for video normalization with run-level 
 - Rect crop support: `RectCropJob` + `cosmos crop curated-views`
 - Optimize support: `cosmos optimize run` (`auto|remux|transcode`) with run/artifact provenance (`cosmos_optimize_run.v1.json`, `*.cosmos_optimized.v1.json`)
 - Optimize auto mode runtime-probes hardware encoders and falls back to `libx264` when unavailable
+- Determinism profiles: `--profile strict|balanced|throughput` across ingest/crop/optimize for reproducibility vs throughput trade-offs. `DeterminismProfile` + `resolve_profile()` in `cosmos.sdk.profiles`.
 - Preview support: `cosmos crop preview` + `cosmos crop curated-views-preview` emitting `cosmos_crop_preview_run.v1.json` and per-clip `preview_plan.v1.json` bundles
 - ffmpeg resolution order: `COSMOS_FFMPEG` -> `~/.local/share/cosmos/bin/ffmpeg` -> system `PATH`
 
