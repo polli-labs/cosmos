@@ -1,7 +1,14 @@
 dev/
+!dev/
+dev/*
+!dev/scripts/
+dev/scripts/*
+!dev/scripts/bootstrap-dev.sh
 issues/
 data/
 scripts/
+!dev/scripts/
+!dev/scripts/bootstrap-dev.sh
 # Keep AGENTS.md tracked in this repo (remove ignore)
 # AGENTS.md
 # CLAUDE.md
