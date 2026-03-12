@@ -82,7 +82,7 @@ install_macos_prereqs() {
 
 install_linux_prereqs() {
   local sudo_cmd
-  sudo_cmd="$(sudo_prefix || true)"
+  sudo_cmd="$(sudo_prefix)"
 
   if have apt-get; then
     log "Ensuring Linux prerequisites with apt-get"
