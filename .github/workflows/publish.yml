@@ -24,17 +24,16 @@ jobs:
           key: ${{ runner.os }}-uv-3.12-${{ hashFiles('pyproject.toml', 'uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-uv-3.12-
-      - name: Install dependencies (dev)
-        run: |
-          uv venv
-          uv pip install -e ".[dev]"
-      - name: Lint (ruff)
-        run: |
-          uv run ruff format --check .
-          uv run ruff check .
+      - name: Sync dev environment
+        run: uv sync --extra dev
+      - name: Format check
+        run: uv run ruff format --check .
+      - name: Lint
+        run: uv run ruff check .
+      - name: Type-check
+        run: uv run ty check
       - name: Run tests
-        run: |
-          uv run pytest -q
+        run: uv run pytest -q
 
   build-and-publish:
     needs: test

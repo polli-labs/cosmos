@@ -33,13 +33,15 @@ Unified ingest + post-processing toolkit for COSM camera outputs with run-level 
 ## First Steps
 
 1. Read `AGENTS.md` in this repo.
-2. Review `references/api-surfaces.md` for current command/API contracts.
-3. Review `references/maintenance-ritual.md` before finalizing feature work or release prep.
-4. Run quality gate before handoff: `make fmt && make lint && make typecheck && make test`.
+2. Read `CONTRIBUTING.md` for contributor setup, bootstrap, and canonical quality-gate commands.
+3. Review `references/api-surfaces.md` for current command/API contracts.
+4. Review `references/maintenance-ritual.md` before finalizing feature work or release prep.
+5. Run the canonical quality gate before handoff: `make check`.
 
 ## Working Rules
 
 - Route business logic through `cosmos/sdk/*`; keep CLI layers thin.
+- Route contributors to `CONTRIBUTING.md` and `dev/scripts/bootstrap-dev.sh` instead of repeating setup steps in ad hoc notes.
 - Preserve square-crop offset semantics (`offset_x`/`offset_y` in `[-1, 1]`).
 - Keep preview geometry parity with crop execution math (rect clamp/even-round behavior, square offset/center semantics).
 - Keep provenance join key stable: `view.source.sha256 == clip.output.sha256`.

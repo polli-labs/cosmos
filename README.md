@@ -10,12 +10,15 @@ Two CLIs, one SDK. TUI‑first UX with a stable programmatic API.
 ## Install
 
 - Production: `pip install polli-cosmos`
-- Dev (uv): 
+- Dev (recommended from an existing checkout):
   ```
-  uv venv .venv
-  . .venv/bin/activate
-  uv pip install -e ".[dev]"
+  bash dev/scripts/bootstrap-dev.sh
   ```
+- Dev (manual):
+  ```
+  make dev-setup
+  ```
+- Contributor docs and the canonical quality gate live in `CONTRIBUTING.md`.
 
 ## CLI quickstart
 
@@ -34,7 +37,7 @@ See docs/cosmos-cli.md and docs/squarecrop-cli.md for usage.
 
 1) Create venv and install dev deps
 ```
-make uv-sync
+make dev-setup
 ```
 
 2) Run ingest (example)
@@ -97,6 +100,7 @@ produced = ingest(inputs, outputs, manifest=None, options=opts)
 
 ## Dev workflow
 
+- Canonical gate: `make check`
 - Format + lint: `make fmt && make lint`
 - Type‑check: `make typecheck`
 - Tests: `make test`

@@ -21,11 +21,12 @@ Run this ritual when any of the following happens:
    - `skills/cosmos/references/architecture.md`
    - `skills/cosmos/references/integration-notes.md`
 3. Validate command surface receipts:
-   - `. .venv/bin/activate && cosmos --help`
-   - `. .venv/bin/activate && cosmos ingest run --help`
-   - `. .venv/bin/activate && cosmos crop run --help`
+   - `uv run cosmos --help`
+   - `uv run cosmos ingest run --help`
+   - `uv run cosmos crop run --help`
 4. Run quality gate:
-   - `make fmt && make lint && make typecheck && make test`
+   - canonical: `make check`
+   - stepwise receipts when needed: `make fmt && make lint && make typecheck && make test`
 5. Post receipts to the standing Linear issue (template below).
 
 ## Standing Linear issue scaffold
@@ -53,7 +54,7 @@ Required checklist
 - [ ] SKILL.md updated (`source_commit`, `package_version`, changed behavior notes)
 - [ ] references updated for changed surfaces
 - [ ] CLI help receipts captured
-- [ ] `make fmt && make lint && make typecheck && make test` receipts captured
+- [ ] `make check` receipt captured (or stepwise receipts when debugging)
 - [ ] drift risks and follow-ups documented
 
 Receipts

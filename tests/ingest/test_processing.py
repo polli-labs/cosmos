@@ -1,6 +1,7 @@
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -27,7 +28,7 @@ def mock_clip_info() -> ClipInfo:
         end_pos=Position(0, 0, 35.183),
         start_idx=1511,
         end_idx=14273,
-        start_time=None,  # type: ignore[arg-type]
+        start_time=None,
     )
 
 
@@ -142,7 +143,7 @@ class TestVideoProcessor:
         assert "-threads" in settings
         assert "1" in settings
 
-    @pytest.mark.parametrize("platform", ["win32", "linux", "darwin"])  # type: ignore[misc]
+    @pytest.mark.parametrize("platform", ["win32", "linux", "darwin"])
     def test_cross_platform_paths(
         self, processor: VideoProcessor, mock_validation_result: ClipValidationResult, platform: str
     ) -> None:
@@ -155,8 +156,11 @@ class TestVideoProcessor:
 
     @patch("subprocess.run")
     def test_process_clip(
-        self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult
-    ) -> None:  # type: ignore[no-untyped-def]
+        self,
+        mock_run: Any,
+        processor: VideoProcessor,
+        mock_validation_result: ClipValidationResult,
+    ) -> None:
         mock_run.return_value.returncode = 0
         with patch("cosmos.ingest.processor.resolve_ffmpeg_path", return_value="/custom/ffmpeg"):
             result = processor.process_clip(mock_validation_result)
@@ -173,8 +177,11 @@ class TestVideoProcessor:
 
     @patch("subprocess.run")
     def test_process_clip_error_handling(
-        self, mock_run, processor: VideoProcessor, mock_validation_result: ClipValidationResult
-    ) -> None:  # type: ignore[no-untyped-def]
+        self,
+        mock_run: Any,
+        processor: VideoProcessor,
+        mock_validation_result: ClipValidationResult,
+    ) -> None:
         mock_run.side_effect = subprocess.CalledProcessError(1, "ffmpeg")
         result = processor.process_clip(mock_validation_result)
         assert not result.success
@@ -188,4 +195,6 @@ class TestVideoProcessor:
                 mock_run.return_value.returncode = 0
                 processor.process_clip(mock_validation_result)
                 assert "creationflags" in mock_run.call_args[1]
-                assert mock_run.call_args[1]["creationflags"] == subprocess.CREATE_NO_WINDOW
+                assert mock_run.call_args[1]["creationflags"] == getattr(
+                    subprocess, "CREATE_NO_WINDOW", 0
+                )

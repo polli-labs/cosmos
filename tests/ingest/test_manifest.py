@@ -99,6 +99,7 @@ class TestManifestParser:
         parser = ManifestParser(sample_manifest)
         parser.update_clip_status("CLIP1", ClipStatus.COMPLETE)
         clip = parser.get_clip("CLIP1")
+        assert clip is not None
         assert clip.status == ClipStatus.COMPLETE
 
 
