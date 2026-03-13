@@ -25,7 +25,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-uv-3.12-
       - name: Sync dev environment
-        run: uv sync --extra dev
+        run: uv sync --extra dev --locked
       - name: Format check
         run: uv run ruff format --check .
       - name: Lint
