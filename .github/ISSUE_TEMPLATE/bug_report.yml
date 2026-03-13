@@ -6,6 +6,14 @@ body:
     id: title
     attributes:
       label: Title
+      placeholder: Short summary of the observed bug
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Cosmos version
+      placeholder: "e.g. 0.6.0"
+    validations: { required: true }
   - type: dropdown
     id: priority
     attributes:
@@ -16,17 +24,37 @@ body:
     id: component
     attributes:
       label: Component
-      options: [ingest, crop, ffmpeg, tui, sdk]
+      options: [ingest, crop, optimize, provenance, ffmpeg, sdk, docs, ci]
+    validations: { required: true }
+  - type: input
+    id: os
+    attributes:
+      label: OS / platform
+      placeholder: "e.g. Ubuntu 24.04, macOS 15, Windows 11"
+    validations: { required: true }
+  - type: input
+    id: ffmpeg
+    attributes:
+      label: ffmpeg version
+      placeholder: "output of: ffmpeg -version | head -n 1"
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
+      description: Include exact CLI command(s), input shape, and flags.
+    validations: { required: true }
   - type: textarea
     id: expected
     attributes:
       label: Expected behavior
+    validations: { required: true }
   - type: textarea
     id: actual
     attributes:
       label: Actual behavior
-
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and artifacts
+      description: Paste stderr/stdout excerpts and link any relevant run sidecars.

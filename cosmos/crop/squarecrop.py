@@ -68,13 +68,17 @@ def run_square_crop(
     *,
     prefer_hevc_hw: bool = False,
     dry_run: bool = False,
+    encoder_override: str | None = None,
+    threads: int | None = None,
+    bitexact: bool = False,
 ) -> CropRunResult:
     """Run or return ffmpeg args for a single square crop job."""
-    encoder, attempted = (
-        ("libx264", "libx264")
-        if dry_run
-        else choose_encoder_for_video(input_video, prefer_hevc_hw=prefer_hevc_hw)
-    )
+    if encoder_override is not None:
+        encoder, attempted = encoder_override, encoder_override
+    elif dry_run:
+        encoder, attempted = "libx264", "libx264"
+    else:
+        encoder, attempted = choose_encoder_for_video(input_video, prefer_hevc_hw=prefer_hevc_hw)
     crop_filter = build_crop_filter(spec)
 
     def _build_args(enc: str) -> list[str]:
@@ -85,6 +89,8 @@ def run_square_crop(
             crop_filter=crop_filter,
             start=spec.start,
             end=spec.end,
+            threads=threads,
+            bitexact=bitexact,
         )
 
     args = _build_args(encoder)

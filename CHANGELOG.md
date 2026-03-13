@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.0 — Adapter extensibility + lineage graph + determinism profiles (2026-03-02)
+- Add ingest adapter contract (`IngestAdapter` Protocol) for multiple source layouts behind one normalized ingest pipeline.
+  - New typed adapter primitives in `cosmos.ingest.adapter` (`ClipDescriptor`, `FfmpegInputSpec`, `IngestAdapter`).
+  - Built-in adapters:
+    - `cosmos.ingest.adapters.cosm` (existing COSM C360 behavior preserved as default).
+    - `cosmos.ingest.adapters.generic_media` (flat directories of MP4/MOV/MKV/etc.).
+  - Adapter registry + auto-detection in `cosmos.ingest.adapters` with explicit override via `--adapter`.
+  - Processor support for adapter-provided specs via `process_clip_with_spec()`.
+  - Run-level provenance now records adapter selection in options/dry-run plans.
+- Add first-class lineage graph surfaces across ingest -> crop -> optimize provenance:
+  - `cosmos lineage` CLI (`build`, `upstream`, `downstream`, `chain`, `tree`) with `--json` and `--plain` contracts.
+  - `cosmos.sdk.lineage` module (`build_index()`, `LineageIndex`, `Node`, `Edge`) for programmatic traversal.
+  - Stable artifact resolution by sha256, sha256 prefix, or artifact ID; deterministic index output ordering.
+- Add determinism profiles (`strict`, `balanced`, `throughput`) across ingest/crop/optimize:
+  - Shared profile model/resolution in `cosmos.sdk.profiles`.
+  - Precedence: CLI `--profile` > `COSMOS_PROFILE` env > legacy behavior.
+  - Profile defaults remain overridable by explicit per-command flags.
+  - `strict` profile pins reproducibility-focused encode behavior (including encoder/thread/bitexact controls) and records profile metadata in provenance.
+- Expand test coverage across adapters, lineage, and profile integration/CLI contracts.
+
+## 0.6.0 — Clean CLI surface + public-readiness baseline (2026-02-27)
+- Remove the standalone `squarecrop` CLI entrypoint and consolidate command usage under `cosmos`.
+- Standardize docs/examples and workflow guidance on `cosmos crop ...` surfaces.
+- Keep square-crop SDK/runtime semantics unchanged while removing obsolete CLI alias surface.
+- Add public-readiness governance artifacts (`SECURITY.md`, `CONTRIBUTING.md`, issue/PR templates) and align docs/skill metadata with the unified CLI.
+
+## 0.5.0 — Optimize command + provenance + cross-platform encoder hardening (2026-02-26)
+- Add `cosmos optimize run` CLI and SDK support (`OptimizeOptions`, `optimize`) for web-ready MP4 transforms with `auto|remux|transcode` modes.
+- Add optimize provenance contracts:
+  - run-level `cosmos_optimize_run.v1.json`
+  - artifact-level `*.mp4.cosmos_optimized.v1.json`
+  - published schemas under both `schema/cosmos/` and `docs/schemas/`.
+- Add optimize command/API/docs/skill references and contract tests for JSON output, validation, and failure mapping.
+- Harden encoder behavior for Linux/Windows/macOS:
+  - runtime-probe auto-selected hardware encoders on real inputs and fall back to `libx264` when unavailable (for example, advertised NVENC without working driver/runtime).
+  - preserve strict behavior for explicitly forced encoders (`--encoder`), surfacing ffmpeg failures instead of silently switching implementations.
+
+## 0.4.1 — Fix rect crop trim duration (2026-02-20)
+- Fix: `_build_rect_crop_args` used `-to {end}` instead of `-t {duration}`, producing wrong output
+  duration when `start > 0`. With `-ss` before `-i`, ffmpeg resets the timestamp origin; `-to` was
+  treated as output-relative position, yielding clips longer than the requested trim window.
+  Aligns rect path with the already-correct square crop arg builder.
+
 ## 0.4.0 — Crop preview contact sheets + stacked overlays (2026-02-17)
 - Add non-interactive crop preview pipeline with layered architecture under `cosmos/preview/`:
   - planner (geometry + selector resolution),

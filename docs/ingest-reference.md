@@ -3,11 +3,13 @@
 Top-level command
 - `cosmos ingest run` — run interactive or non‑interactive ingest.
 
+Source adapter selection
+- `--adapter NAME` — choose source adapter explicitly (`cosm` or `generic-media`). When omitted, auto‑detected from directory contents.
+
 Common options
-- `--input-dir PATH` — input directory (root containing `0H/0M/…` and a manifest).
+- `--input-dir PATH` — input directory.
 - `--output-dir PATH` — output directory.
-- `--yes` — non‑interactive (don’t prompt).
-- `--manifest PATH` — manifest XML if not in `--input-dir`.
+- `--yes` — non‑interactive (don't prompt).
 - `--clip NAME` — process only these clip names (repeatable).
 - `--dry-run` — do not execute ffmpeg; write a plan JSON.
 
@@ -18,8 +20,16 @@ Performance tuning
 - `--decode {auto|hw|sw}` — best‑effort decode acceleration.
 - `--window SECONDS` — process only the first N seconds.
 
+## Adapters
+
+### cosm (default for COSM cameras)
+Auto-detected when the input directory contains a `*.xml` manifest. Handles the COSM C360 quad-tile TS-segment layout: manifest parsing, segment validation, and a filter graph that crops, hstacks, and vstacks four tile streams.
+
+### generic-media
+Auto-detected when the input directory contains video files (`.mp4`, `.mov`, `.mkv`, `.avi`, `.ts`, `.mts`, `.webm`) but no COSM manifest. Each video file is treated as a single clip and re-encoded with optional scaling — no tile-stitching filter graph.
+
 Examples
-- Balanced 4K default:
+- Balanced 4K default (COSM auto-detected):
 ```
 cosmos ingest run --input-dir /data/cosm --output-dir ./out --yes
 ```
@@ -27,9 +37,13 @@ cosmos ingest run --input-dir /data/cosm --output-dir ./out --yes
 ```
 cosmos ingest run --input-dir /data/cosm --output-dir ./out --clip CLIP1 --clip CLIP2 --yes
 ```
-- Faster preview (bicubic, limited filter threads, 10s):
+- Generic media (auto-detected):
 ```
-cosmos ingest run --input-dir /data/cosm --output-dir ./out --scale-filter bicubic --filter-threads 2 --fc-threads 2 --window 10 --yes
+cosmos ingest run --input-dir /data/videos --output-dir ./out --yes
+```
+- Force generic adapter on a COSM directory:
+```
+cosmos ingest run --input-dir /data/cosm --output-dir ./out --adapter generic-media --yes
 ```
 - Dry‑run plan only:
 ```
@@ -41,4 +55,3 @@ Outputs
 - `{clip}.mp4.cmd.txt` — exact ffmpeg command.
 - `{clip}.mp4.log.txt` — ffmpeg logs.
 - `cosmos_dry_run.json` — plan for all clips when `--dry-run` is used.
-

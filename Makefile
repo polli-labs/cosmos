@@ -9,11 +9,11 @@ help: ## Show targets
 # ——— Environment ———
 .PHONY: dev-setup
 dev-setup: ## Sync project + dev dependencies into .venv
-	$(UV) sync --extra dev
+	$(UV) sync --extra dev --locked
 
 .PHONY: docs-setup
 docs-setup: ## Sync project + dev + docs dependencies into .venv
-	$(UV) sync --extra dev --extra docs
+	$(UV) sync --extra dev --extra docs --locked
 
 .PHONY: venv
 venv: ## Create virtualenv only
@@ -59,18 +59,15 @@ test: ## Run tests
 cosmos: ## Launch cosmos CLI
 	$(UV) run cosmos --help
 
-.PHONY: squarecrop
-squarecrop: ## Launch squarecrop CLI
-	$(UV) run squarecrop --help
-
 # ——— Local runs (parameterized) ———
 # Usage examples:
 #   make run.ingest IN=/path/raw OUT=/path/out YES=1 WINDOW=10
 #   make run.crop INPUT=/path/in.mp4 OUT=_work/out JOBS=_work/job.json YES=1
+#   make run.optimize INPUT=/path/in.mp4 OUT=_work/web YES=1 HEIGHT=1080 FPS=30 CRF=23
 
 .PHONY: run.ingest
 run.ingest: ## Run ingest: IN=/path INput dir, OUT=/path OUTput dir, optional YES=1, WINDOW=secs, CLIP=NAME (repeat via CLIPS="A B")
-	$(UV) run python -m cosmos.cli.ingest_cli run \
+	$(UV) run cosmos ingest run \
 		$$([ -n "$(IN)" ] && echo --input-dir "$(IN)") \
 		$$([ -n "$(OUT)" ] && echo --output-dir "$(OUT)") \
 		$$([ -n "$(YES)" ] && echo --yes) \
@@ -78,17 +75,30 @@ run.ingest: ## Run ingest: IN=/path INput dir, OUT=/path OUTput dir, optional YE
 		$$(for c in $(CLIPS); do echo --clip $$c; done)
 
 .PHONY: run.crop
-run.crop: ## Run squarecrop: INPUT=/path/in.mp4 OUT=/path/out JOBS=/path/jobs.json optional YES=1 DRY=1
-	$(UV) run python -m cosmos.cli.crop_cli \
+run.crop: ## Run cosmos crop: INPUT=/path/in.mp4 OUT=/path/out JOBS=/path/jobs.json optional YES=1 DRY=1
+	$(UV) run cosmos crop run \
 		$$([ -n "$(INPUT)" ] && echo --input "$(INPUT)") \
 		$$([ -n "$(OUT)" ] && echo --out-dir "$(OUT)") \
 		$$([ -n "$(JOBS)" ] && echo --jobs-file "$(JOBS)") \
 		$$([ -n "$(YES)" ] && echo --yes) \
 		$$([ -n "$(DRY)" ] && echo --dry-run)
 
+.PHONY: run.optimize
+run.optimize: ## Run optimize: INPUT=/path/in.mp4 OUT=/path/out optional YES=1 DRY=1 MODE=auto|remux|transcode HEIGHT=1080 FPS=30 CRF=23 FORCE=1
+	$(UV) run cosmos optimize run \
+		$$([ -n "$(INPUT)" ] && echo --input "$(INPUT)") \
+		$$([ -n "$(OUT)" ] && echo --out-dir "$(OUT)") \
+		$$([ -n "$(MODE)" ] && echo --mode "$(MODE)") \
+		$$([ -n "$(HEIGHT)" ] && echo --target-height "$(HEIGHT)") \
+		$$([ -n "$(FPS)" ] && echo --fps "$(FPS)") \
+		$$([ -n "$(CRF)" ] && echo --crf "$(CRF)") \
+		$$([ -n "$(YES)" ] && echo --yes) \
+		$$([ -n "$(FORCE)" ] && echo --force) \
+		$$([ -n "$(DRY)" ] && echo --dry-run)
+
 .PHONY: run.provenance
 run.provenance: ## Map provenance in a dir: DIR=/path (prints sha256 -> artifact JSON)
-	$(UV) run python -m cosmos.cli.provenance_cli map $$([ -n "$(DIR)" ] && echo "$(DIR)" || echo .)
+	$(UV) run cosmos provenance map $$([ -n "$(DIR)" ] && echo "$(DIR)" || echo .)
 .PHONY: test-e2e-local
 test-e2e-local: ## Run local E2E tests (set COSMOS_ENABLE_LOCAL_TESTS=1)
 	COSMOS_ENABLE_LOCAL_TESTS=1 $(UV) run pytest -q tests/e2e_local -q
@@ -137,13 +147,13 @@ fixtures.download-outputs: ## Download known-good outputs into cache (optional)
 	./dev/scripts/fixtures_sync.sh download-outputs
 
 .PHONY: fixtures.pack-crop-outputs
-fixtures.pack-crop-outputs: ## Copy selected squarecrop outputs into cache (optional)
+fixtures.pack-crop-outputs: ## Copy selected crop outputs into cache (optional)
 	./dev/scripts/fixtures_sync.sh pack-crop-outputs
 
 .PHONY: fixtures.upload-crop-outputs
-fixtures.upload-crop-outputs: ## Upload selected squarecrop outputs into remote (optional)
+fixtures.upload-crop-outputs: ## Upload selected crop outputs into remote (optional)
 	./dev/scripts/fixtures_sync.sh upload-crop-outputs
 
 .PHONY: fixtures.download-crop-outputs
-fixtures.download-crop-outputs: ## Download selected squarecrop outputs into cache (optional)
+fixtures.download-crop-outputs: ## Download selected crop outputs into cache (optional)
 	./dev/scripts/fixtures_sync.sh download-crop-outputs

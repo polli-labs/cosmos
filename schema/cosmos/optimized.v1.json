@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://docs.polli.ai/cosmos/schemas/optimized.v1.json",
+  "title": "Cosmos Optimized Artifact (v1)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "optimized_id",
+    "optimize_run_id",
+    "mode",
+    "source",
+    "output",
+    "video"
+  ],
+  "properties": {
+    "schema_version": { "type": "string" },
+    "optimized_id": { "type": "string" },
+    "optimize_run_id": { "type": "string" },
+    "mode": { "type": "string", "enum": ["remux", "transcode"] },
+    "source": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string" },
+        "clip_id": { "type": "string" },
+        "video": { "type": "object" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string" },
+        "bytes": { "type": "integer" }
+      }
+    },
+    "video": {
+      "type": "object",
+      "required": ["width", "height"],
+      "properties": {
+        "width": { "type": "integer", "description": "alias of width_px (pixels)" },
+        "height": { "type": "integer", "description": "alias of height_px (pixels)" },
+        "width_px": { "type": "integer" },
+        "height_px": { "type": "integer" },
+        "fps": { "type": "number" },
+        "duration_sec": { "type": "number" },
+        "pix_fmt": { "type": "string" },
+        "color_space": { "type": "string" }
+      }
+    },
+    "transform": { "type": "object" },
+    "encode": { "type": "object" },
+    "env": { "type": "object" }
+  }
+}

@@ -146,8 +146,9 @@ def render_view_cell(
     color: tuple[int, int, int],
 ) -> None:
     base = Image.open(frame_path).convert("RGBA")
-    draw = ImageDraw.Draw(base, "RGBA")
 
+    # Draw grid/rulers directly on base (opaque elements).
+    draw = ImageDraw.Draw(base, "RGBA")
     _draw_grid(draw, width=base.width, height=base.height, step_px=grid_step_px)
     if show_rulers:
         _draw_rulers(draw, width=base.width, height=base.height, step_px=grid_step_px)
@@ -160,10 +161,21 @@ def render_view_cell(
         render_h=base.height,
     )
 
+    # Alpha-composite the crop fill via a separate overlay so the underlying
+    # frame content is visible through the tinted rectangle.
     fill_alpha = int(max(0.0, min(alpha, 1.0)) * 255)
-    draw.rectangle(
+    overlay = Image.new("RGBA", base.size, (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    overlay_draw.rectangle(
         _rect_bounds(x, y, w, h),
         fill=(color[0], color[1], color[2], fill_alpha),
+    )
+    base = Image.alpha_composite(base, overlay)
+
+    # Draw opaque elements (outline, crosshair, text) on the composited result.
+    draw = ImageDraw.Draw(base, "RGBA")
+    draw.rectangle(
+        _rect_bounds(x, y, w, h),
         outline=(color[0], color[1], color[2], 255),
         width=4,
     )

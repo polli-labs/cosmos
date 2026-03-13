@@ -1,20 +1,37 @@
 from __future__ import annotations
 
+import importlib
 import json
+import re
 from pathlib import Path
 
 from cosmos.cli.cosmos_app import app
 from cosmos.preview.pipeline import PreviewRunResult
+from cosmos.sdk.ingest import IngestOptions
 from typer.testing import CliRunner
 
+optimize_mod = importlib.import_module("cosmos.sdk.optimize")
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 def test_root_help_exposes_process_and_hides_pipeline() -> None:
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
     assert "process" in result.stdout
+    assert "optimize" in result.stdout
+    assert "squarecrop" not in result.stdout
     assert "pipeline" not in result.stdout
+
+
+def test_root_rejects_squarecrop_subcommand() -> None:
+    result = runner.invoke(app, ["squarecrop", "--help"])
+    assert result.exit_code == 2
+    assert "No such command" in result.output
 
 
 def test_ingest_json_output_contract(monkeypatch, tmp_path: Path) -> None:
@@ -84,6 +101,143 @@ def test_ingest_runtime_maps_to_ffmpeg_error_exit_code(monkeypatch, tmp_path: Pa
     )
     assert result.exit_code == 4
     assert "ffmpeg not found" in result.output
+
+
+def test_optimize_json_output_contract(monkeypatch, tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "cosmos.cli.optimize_cli.optimize",
+        lambda *_args, **_kwargs: [out_dir / "clip_optimized.mp4"],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+            "--dry-run",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "cosmos optimize run"
+    assert payload["count"] == 1
+    assert payload["outputs"] == [str(out_dir / "clip_optimized.mp4")]
+    assert payload["run_artifact"] == str(out_dir / "cosmos_optimize_run.v1.json")
+    assert payload["dry_run_plan"] == str(out_dir / "cosmos_optimize_dry_run.json")
+
+
+def test_optimize_remux_rejects_transform_flags(tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+            "--mode",
+            "remux",
+            "--target-height",
+            "1080",
+        ],
+    )
+    assert result.exit_code == 2
+    assert "cannot be combined" in result.output
+
+
+def test_optimize_runtime_maps_to_ffmpeg_error_exit_code(monkeypatch, tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    def _raise_ffmpeg(*_args, **_kwargs):
+        raise RuntimeError("ffmpeg not found")
+
+    monkeypatch.setattr("cosmos.cli.optimize_cli.optimize", _raise_ffmpeg)
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "ffmpeg not found" in result.output
+
+
+def test_optimize_skip_ffmpeg_check_only_suppresses_bootstrap_prompt(
+    monkeypatch, tmp_path: Path
+) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    prompt_calls: list[dict[str, object]] = []
+
+    def _capture_prompt(**kwargs: object) -> None:
+        prompt_calls.append(kwargs)
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        _capture_prompt,
+    )
+
+    def _raise_ffmpeg_missing() -> None:
+        raise RuntimeError("ffmpeg not found")
+
+    monkeypatch.setattr(optimize_mod, "ensure_ffmpeg_available", _raise_ffmpeg_missing)
+
+    result = runner.invoke(
+        app,
+        [
+            "optimize",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--yes",
+            "--dry-run",
+            "--skip-ffmpeg-check",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "ffmpeg not found" in result.output
+    assert prompt_calls == [{"interactive": False}]
 
 
 def test_crop_run_non_interactive_requires_out_dir(tmp_path: Path) -> None:
@@ -283,3 +437,57 @@ def test_pipeline_alias_warns_and_processes(monkeypatch, tmp_path: Path) -> None
     assert payload["command"] == "cosmos process"
     assert payload["ingest_count"] == 1
     assert "deprecated" in result.output
+
+
+def test_ingest_adapter_flag_visible_in_help() -> None:
+    result = runner.invoke(
+        app,
+        ["ingest", "run", "--help"],
+        env={"NO_COLOR": "1", "COLUMNS": "200"},
+    )
+    assert result.exit_code == 0
+    plain = _strip_ansi(result.stdout).lower()
+    assert "source adapter" in plain
+    assert "cosm" in plain
+    assert "generic-media" in plain
+
+
+def test_ingest_adapter_flag_passed_through(monkeypatch, tmp_path: Path) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    captured_opts: list[IngestOptions] = []
+
+    def _capture_ingest(*_args: object, **kwargs: object) -> list[Path]:
+        options = kwargs.get("options")
+        assert isinstance(options, IngestOptions)
+        captured_opts.append(options)
+        return [output_dir / "clip.mp4"]
+
+    monkeypatch.setattr("cosmos.cli.ingest_cli.ingest", _capture_ingest)
+
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            "run",
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            str(output_dir),
+            "--adapter",
+            "generic-media",
+            "--yes",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0
+    assert len(captured_opts) == 1
+    assert captured_opts[0].adapter == "generic-media"

@@ -1,7 +1,7 @@
-# Squarecrop CLI Reference
+# Crop Run CLI Reference
 
 Top-level command
-- `squarecrop` — run interactive or non‑interactive square cropping.
+- `cosmos crop run` — interactive or non-interactive crop execution.
 
 Options
 - `--input PATH` — one or more MP4 files (repeatable).
@@ -13,16 +13,16 @@ Options
 
 Examples
 - Simple interactive use:
+```bash
+cosmos crop run
 ```
-squarecrop
-```
-- Non‑interactive with jobs file:
-```
-squarecrop --jobs-file /path/jobs.json --input clip.mp4 --out-dir ./out --yes
+- Non-interactive with jobs file:
+```bash
+cosmos crop run --jobs-file /path/jobs.json --input clip.mp4 --out-dir ./out --yes
 ```
 - Multiple inputs:
-```
-squarecrop --jobs-file /path/jobs.json --input a.mp4 --input b.mp4 --out-dir ./out --yes
+```bash
+cosmos crop run --jobs-file /path/jobs.json --input a.mp4 --input b.mp4 --out-dir ./out --yes
 ```
 
 Jobs file fields

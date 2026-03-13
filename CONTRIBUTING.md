@@ -10,10 +10,10 @@ Recommended setup from a local checkout:
 bash dev/scripts/bootstrap-dev.sh
 ```
 
-That script is designed to be idempotent and non-interactive on macOS and Linux.
-It installs or validates the small set of host prerequisites Cosmos needs
-(`git`, `python3`, `uv`, `ffmpeg`), then syncs a reproducible repo-local dev
-environment with `uv`.
+That script is idempotent and non-interactive on macOS and Linux. It installs
+or validates the small host prerequisite set Cosmos needs (`git`, `python3`,
+`uv`, `ffmpeg`), then syncs the repo-local environment from the committed
+`uv.lock`.
 
 Manual setup is also fine:
 
@@ -27,15 +27,21 @@ If you need docs tooling too:
 make docs-setup
 ```
 
+If you change `pyproject.toml` or any dependency inputs, refresh the lockfile:
+
+```bash
+uv lock
+```
+
 ## Canonical quality gate
 
-Cosmos now treats this as the primary local gate:
+Run this before handing off a change:
 
 ```bash
 make check
 ```
 
-That command runs the same quality tuple we expect before handoff:
+That command runs the same core tuple we expect in CI:
 
 - `ruff format --check`
 - `ruff check`
@@ -56,24 +62,43 @@ make test
 - `ty` is the required type gate for Cosmos.
 - Warnings are fatal.
 - The typed surface includes both `cosmos/**/*.py` and `tests/**/*.py`.
-- Avoid introducing unowned suppressions. Fix the source issue instead whenever
-  practical.
+- Avoid introducing unowned suppressions. Fix the source issue instead whenever practical.
+
+## Architecture expectations
+
+- Keep business logic in SDK/runtime modules (`cosmos/sdk/*`, `cosmos/*`) and keep CLI glue thin.
+- Prefer shared ffmpeg helpers in `cosmos/ffmpeg/*` over ad-hoc command construction.
+- Preserve provenance contracts and join semantics across ingest/crop/optimize outputs.
+
+## Test and CI notes
+
+- Windows `CREATE_NO_WINDOW` shim:
+  - Some tests patch `os.name = "nt"` on non-Windows hosts.
+  - `cosmos/ingest/processor.py` defines `subprocess.CREATE_NO_WINDOW = 0` when missing.
+  - Use `creationflags=subprocess.CREATE_NO_WINDOW` rather than hard-coded values.
+
+- Encoder detection during `--dry-run`:
+  - For `cosmos crop run`, when `dry_run=True`, hardware encoder probing is skipped and the
+    plan defaults to `libx264` for deterministic tests.
+  - Tests asserting ffmpeg args in dry-run mode should not expect host-specific hardware encoders.
+  - To validate runtime probing behavior, run without dry-run on a host with ffmpeg available.
 
 ## Optional environment variables
 
 Cosmos does not require project-specific secrets for local development.
 
-- `COSMOS_FFMPEG=/path/to/ffmpeg` lets you override FFmpeg discovery if you need
-  a non-default binary.
+- `COSMOS_FFMPEG=/path/to/ffmpeg` lets you override FFmpeg discovery if you need a
+  non-default binary.
 
-## Notes to avoid surprises
+## Documentation and skill freshness
 
-- Windows `CREATE_NO_WINDOW` shim
-  - Some unit tests patch `os.name = "nt"` to exercise Windows‑specific code paths on non‑Windows runners. To keep those tests working cross‑platform, we install a lightweight shim in `cosmos/ingest/processor.py` that defines `subprocess.CREATE_NO_WINDOW = 0` when the attribute is missing.
-  - Guidance: it’s fine to pass `creationflags=subprocess.CREATE_NO_WINDOW` to `subprocess.run`. On non‑Windows, this resolves to `0`. Avoid hard‑coding magic numbers.
+When CLI/SDK/provenance behavior changes, update docs and skill references in the same PR:
 
-- Encoder detection during dry‑run
-  - For `squarecrop`, when `dry_run=True` we skip hardware encoder detection and default to `libx264`. This keeps tests deterministic and avoids platform quirks or mocked `subprocess.run` issues.
-  - Guidance: in tests that assert on constructed ffmpeg args, don’t expect platform‑specific encoders when `dry_run=True`. If you need to validate detection, run without `dry_run` and ensure ffmpeg is available on the runner.
+- docs under `docs/`
+- skill package under `skills/cosmos/`
+- release notes in `CHANGELOG.md` when applicable
 
-If you run into CI failures related to these, ping the maintainers or open an issue with the failing job link so we can tune the harness.
+## Reporting issues
+
+- Use GitHub Issues for bugs, feature requests, and tech debt.
+- For security vulnerabilities, do not open public issues. Follow `SECURITY.md`.

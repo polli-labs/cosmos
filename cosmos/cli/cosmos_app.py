@@ -8,16 +8,20 @@ import typer
 from cosmos.cli.crop_cli import app as crop_app
 from cosmos.cli.ingest_cli import app as ingest_app
 from cosmos.cli.io import emit_paths, emit_payload, info, raise_mapped_exit, resolve_output_mode
+from cosmos.cli.lineage_cli import app as lineage_app
+from cosmos.cli.optimize_cli import app as optimize_app
 from cosmos.cli.provenance_cli import app as prov_app
 from cosmos.sdk.crop import CropJob
 from cosmos.sdk.crop import crop as sdk_crop
 from cosmos.sdk.ingest import IngestOptions
 from cosmos.sdk.ingest import ingest as sdk_ingest
 
-app = typer.Typer(help="Cosmos: ingest + crop toolkit")
-app.add_typer(ingest_app, name="ingest", help="COSM camera MP4 generation")
+app = typer.Typer(help="Cosmos: ingest + crop + optimize toolkit")
+app.add_typer(ingest_app, name="ingest", help="Video ingest (auto-detects source layout)")
 app.add_typer(crop_app, name="crop", help="Post-processing crop (square or rectangular)")
+app.add_typer(optimize_app, name="optimize", help="Web-ready MP4 optimization")
 app.add_typer(prov_app, name="provenance", help="Inspect provenance artifacts")
+app.add_typer(lineage_app, name="lineage", help="Lineage graph queries")
 
 
 def _run_process(
@@ -44,6 +48,7 @@ def _run_process(
     plain_out: Annotated[
         bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
     ] = False,
+    profile: str | None = None,
     deprecated_alias: bool = False,
 ) -> None:
     output_mode = resolve_output_mode(json_out=json_out, plain_out=plain_out)
@@ -51,7 +56,7 @@ def _run_process(
         info("`cosmos pipeline` is deprecated; use `cosmos process` instead.")
 
     try:
-        opts = IngestOptions(dry_run=dry_run, clips=clip)
+        opts = IngestOptions(dry_run=dry_run, clips=clip, profile=profile)
         videos = sdk_ingest(input_dir, output_dir, manifest=None, options=opts)
         outputs = videos
         crop_outputs: list[Path] = []
@@ -64,7 +69,10 @@ def _run_process(
             else:
                 parsed_jobs = [CropJob()]
             crop_outputs = sdk_crop(
-                videos, parsed_jobs, output_dir, ffmpeg_opts={"dry_run": dry_run}
+                videos,
+                parsed_jobs,
+                output_dir,
+                ffmpeg_opts={"dry_run": dry_run, "profile": profile},
             )
             outputs = crop_outputs
     except Exception as exc:  # noqa: BLE001
@@ -119,6 +127,14 @@ def process(
     plain_out: Annotated[
         bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
     ] = False,
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            "--profile",
+            help="Determinism profile (strict|balanced|throughput). "
+            "Controls encoder, threads, and bitexact flags for reproducibility.",
+        ),
+    ] = None,
 ) -> None:
     """Canonical ingest -> optional crop workflow."""
     _run_process(
@@ -130,6 +146,7 @@ def process(
         clip=clip,
         json_out=json_out,
         plain_out=plain_out,
+        profile=profile,
     )
 
 
@@ -158,6 +175,14 @@ def pipeline(
     plain_out: Annotated[
         bool, typer.Option("--plain", help="Emit plain line-based output to stdout")
     ] = False,
+    profile: Annotated[
+        str | None,
+        typer.Option(
+            "--profile",
+            help="Determinism profile (strict|balanced|throughput). "
+            "Controls encoder, threads, and bitexact flags for reproducibility.",
+        ),
+    ] = None,
 ) -> None:
     """Deprecated alias for process."""
     _run_process(
@@ -169,6 +194,7 @@ def pipeline(
         clip=clip,
         json_out=json_out,
         plain_out=plain_out,
+        profile=profile,
         deprecated_alias=True,
     )
 

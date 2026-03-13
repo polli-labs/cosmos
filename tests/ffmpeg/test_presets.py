@@ -40,3 +40,10 @@ def test_presets_amf_cqp():
     assert "-c:v h264_amf" in joined
     assert "-rc cqp" in joined
     assert "-qp_i 18" in joined and "-qp_p 18" in joined
+
+
+def test_presets_vaapi_qp():
+    args = build_encoder_settings("h264_vaapi", mode="balanced", crf=23)
+    joined = " ".join(args)
+    assert "-c:v h264_vaapi" in joined
+    assert "-qp 23" in joined

@@ -7,7 +7,9 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 ### Ingest
 
 - `ingest(input_dir, output_dir, *, manifest, options) -> list[Path]`
-- `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, and filter-thread knobs.
+- `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, filter-thread knobs, determinism profile (`profile`), and source adapter selection (`adapter` field).
+- Adapter contract: `IngestAdapter` Protocol in `cosmos.ingest.adapter` — defines `detect()`, `discover_clips()`, `validate_clip()`, `build_ffmpeg_spec()`, `validate_system()`.
+- Built-in adapters: `cosm` (COSM C360), `generic-media` (flat video directory). Auto-detected by default; explicit via `IngestOptions.adapter` or CLI `--adapter`.
 
 ### Crop
 
@@ -26,10 +28,36 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - run-level `cosmos_crop_preview_run.v1.json`
   - per-clip `preview_plan.v1.json` + image artifacts (`frames/`, `sheets/`, `stacked/`)
 
+### Optimize
+
+- `optimize(input_videos, out_dir, *, options) -> list[Path]`
+- `OptimizeOptions` supports:
+  - `mode`: `auto|remux|transcode`
+  - transform flags: `target_height`, `fps`, `crf`, optional forced `encoder`
+  - safety flags: `force`, `dry_run`, `faststart`, `suffix`
+  - `profile`: determinism profile (`strict|balanced|throughput`) — controls encoder pinning, thread count, and bitexact flags
+- Optimize outputs emit:
+  - run-level `cosmos_optimize_run.v1.json`
+  - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
+  - dry-run plan `cosmos_optimize_dry_run.json`
+- Encoder behavior:
+  - auto-selected hardware encoders are runtime-probed and degrade to `libx264` when unavailable.
+  - explicitly forced encoders are treated as strict and fail fast on ffmpeg errors.
+
+### Lineage
+
+- `build_index(*dirs) -> LineageIndex`: Scan directories for provenance sidecars and build a DAG.
+- `LineageIndex.upstream(sha256) -> list[Node]`: Transitive ancestors.
+- `LineageIndex.downstream(sha256) -> list[Node]`: Transitive descendants.
+- `LineageIndex.chain(sha256) -> list[Node]`: Full lineage (upstream + self + downstream).
+- `LineageIndex.tree(sha256) -> dict`: Nested source hierarchy.
+- `LineageIndex.write(path) -> Path`: Serialize index to JSON.
+- `LineageIndex.to_dict() -> dict`: Serialize to dict with `cosmos-lineage-index-v1` schema.
+
 ### Provenance
 
 - Emitters:
-  - `emit_ingest_run`, `emit_clip_artifact`, `emit_crop_run`, `emit_crop_view`
+  - `emit_ingest_run`, `emit_clip_artifact`, `emit_crop_run`, `emit_crop_view`, `emit_optimize_run`, `emit_optimized_artifact`
 - Lookup helpers:
   - `find_clip_for_file`, `find_view_for_file`, `views_for_clip`, `map_artifacts_by_sha`
 
@@ -37,10 +65,20 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 ### Root app
 
-- `cosmos ingest ...`
+- `cosmos process ...` (canonical ingest -> optional crop workflow)
+- `cosmos ingest ...` (supports `--adapter` for source layout selection)
 - `cosmos crop ...`
+- `cosmos optimize ...`
 - `cosmos provenance ...`
-- `cosmos pipeline ...` (legacy convenience path)
+- `cosmos lineage ...`
+- hidden legacy alias: `cosmos pipeline ...` (deprecated compatibility command; do not use in new docs/examples)
+
+### Process command
+
+- `cosmos process <input_dir> <output_dir>`
+  - flow flags: `--post-process`, `--crop-config`
+  - run-control flags: `--dry-run`, `--clip`, `--profile`
+  - output flags: `--json|--plain`
 
 ### Crop commands
 
@@ -57,11 +95,40 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - curated-spec preview renderer grouped by source clip
   - key flags mirror `crop preview` and include `--spec --source-root --out [--clip-pattern]`
 
+### Optimize commands
+
+- `cosmos optimize run`
+  - modes: `--mode auto|remux|transcode`
+  - transforms: `--target-height`, `--fps`, `--crf`, `--encoder`
+  - determinism: `--profile strict|balanced|throughput`
+  - safety/io: `--faststart`, `--suffix`, `--force`, `--yes`, `--dry-run`, `--json|--plain`
+
+### Determinism profile precedence
+
+- `--profile` CLI flag has highest precedence.
+- `COSMOS_PROFILE` environment variable is next.
+- Per-command defaults apply when neither CLI nor env is set.
+
+### Lineage commands
+
+- `cosmos lineage build <dirs...> [--output FILE] [--json|--plain]`
+  - Scans directories for provenance sidecars and builds a lineage index.
+- `cosmos lineage upstream <identifier> [--in <dir>...] [--json|--plain]`
+  - Shows all transitive ancestors of the artifact.
+- `cosmos lineage downstream <identifier> [--in <dir>...] [--json|--plain]`
+  - Shows all transitive derivatives of the artifact.
+- `cosmos lineage chain <identifier> [--in <dir>...] [--json|--plain]`
+  - Full chain: upstream + self + downstream.
+- `cosmos lineage tree <identifier> [--in <dir>...] [--json|--plain]`
+  - Nested upstream source hierarchy.
+- Identifiers accept full sha256, sha256 prefix, or artifact ID.
+
 ### Non-interactive safety
 
-- `--yes` to suppress prompts.
-- `--skip-ffmpeg-check` to suppress bootstrap prompt.
+- `--yes` to suppress prompts on interactive commands that expose it (for example `ingest run`, `crop run`, `optimize run`).
+- `--skip-ffmpeg-check` to suppress bootstrap prompt where supported.
 - `--dry-run` must avoid side-effectful encode execution.
+- machine-safe mode: use `--json` for structured payloads, keep parseable data on stdout.
 
 ## Exit-code policy (target contract for redesign)
 

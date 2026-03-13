@@ -1,81 +1,91 @@
 # Cosmos SDK (Python)
 
-Cosmos exposes a small, stable SDK for programmatic ingest and cropping. This page covers the main entry points and options.
+Cosmos exposes a stable SDK for ingest, crop, preview, optimize, and provenance tasks.
+
+## SDK entry points
+
+```python
+from cosmos.sdk import (
+    ingest,
+    IngestOptions,
+    crop,
+    CropJob,
+    optimize,
+    OptimizeOptions,
+    DeterminismProfile,
+    resolve_profile,
+)
+```
 
 ## Ingest API
 
-Function
 ```python
 from pathlib import Path
 from cosmos.sdk.ingest import ingest, IngestOptions
 
-outputs: list[Path] = ingest(
+# COSM ingest (auto-detected from manifest XML)
+outputs = ingest(
     input_dir=Path("/data/cosm"),
     output_dir=Path("./out"),
-    manifest=None,  # or Path("/data/cosm/LADYBIRD.xml")
+    manifest=None,
     options=IngestOptions(
         width=3840,
         height=2160,
-        quality_mode="balanced",   # quality|balanced|performance|low_memory|minimal
-        low_memory=False,
-        crf=None,
-        clips=["CLIP1", "CLIP2"], # process a subset by name
-        dry_run=False,
-        scale_filter="bicubic",    # lanczos|spline36|bicubic|bilinear
+        quality_mode="balanced",
+        clips=["CLIP1", "CLIP2"],
+        scale_filter="bicubic",
         filter_threads=2,
         filter_complex_threads=2,
-        decode="auto",             # auto|hw|sw (best-effort)
-        window_seconds=None,        # limit duration for previews
+        decode="auto",
+        window_seconds=None,
+        dry_run=False,
     ),
+)
+
+# Generic media ingest (auto-detected from video files)
+outputs = ingest(
+    input_dir=Path("/data/field-videos"),
+    output_dir=Path("./out"),
+    options=IngestOptions(adapter="generic-media"),
 )
 ```
 
-Notes
-- When `dry_run=True`, `ingest` writes `cosmos_dry_run.json` describing encoder preference, filter graph, and clip plan.
-- For transparency, each output clip includes `{clip}.mp4.cmd.txt` and `{clip}.mp4.log.txt`.
-- Use `clips=[...]` to process only specific clips.
+Notes:
 
-## Crop API (squarecrop)
+- The `adapter` field selects the source layout adapter (`"cosm"`, `"generic-media"`). When `None` (default), the adapter is auto-detected from directory contents.
+- `dry_run=True` writes `cosmos_dry_run.json` (planned commands and clip plan).
+- Real runs produce `{clip}.mp4.cmd.txt` and `{clip}.mp4.log.txt` alongside outputs.
+- `clips=[...]` restricts ingest to a subset by clip name.
 
-Data model
-```python
-from dataclasses import dataclass
+## Crop API
 
-@dataclass
-class CropJob:
-    center_x: float = 0.5
-    center_y: float = 0.5
-    size: int = 1080
-    start: float | None = None
-    end: float | None = None
-```
-
-Functions
 ```python
 from pathlib import Path
 from cosmos.sdk.crop import crop, CropJob
 
 outputs = crop(
     input_videos=[Path("clip.mp4")],
-    jobs=[CropJob(size=640, center_x=0.55, center_y=0.5, start=0.0, end=10.0)],
+    jobs=[CropJob(size=1080, center_x=0.5, center_y=0.5, start=0.0, end=10.0)],
     out_dir=Path("./crops"),
     ffmpeg_opts={"dry_run": False},
 )
 ```
 
-Jobs files
+Jobs files:
+
 ```python
+from pathlib import Path
 from cosmos.crop.jobs import parse_jobs_json
+from cosmos.sdk.crop import crop
+
 jobs = parse_jobs_json(Path("job_settings.json"))
 outputs = crop([Path("clip.mp4")], jobs, Path("./crops"))
 ```
 
-## Crop Preview API
+## Crop preview API
 
-Functions
 ```python
 from pathlib import Path
-
 from cosmos.crop.jobs import parse_jobs_json
 from cosmos.sdk.preview import RenderOptions, preview
 
@@ -96,15 +106,87 @@ result = preview(
 print(result.run_path)
 ```
 
-Preview outputs
-- Run-level artifact: `cosmos_crop_preview_run.v1.json`
-- Per-clip bundle:
-  - `preview_plan.v1.json` (resolved geometry/time contract)
-  - `frames/*.png`
-  - `sheets/sheet_frame_<selector>.png`
-  - `stacked/stacked_t_<time>.png`
+Preview outputs:
 
-## Error handling
-- Ingest raises `ValueError` if the input folder is missing.
-- Under dry‑run, `ingest` returns planned output paths; no ffmpeg errors are raised.
-- During real runs, ffmpeg failures are captured into `{clip}.mp4.log.txt` and surfaced as a failed result in CLI; the SDK returns paths for successful clips only.
+- `cosmos_crop_preview_run.v1.json`
+- per-clip bundle with `preview_plan.v1.json`, `frames/`, `sheets/`, and `stacked/`
+
+## Optimize API
+
+```python
+from pathlib import Path
+from cosmos.sdk.optimize import optimize, OptimizeOptions
+
+outputs = optimize(
+    input_videos=[Path("clip.mp4")],
+    out_dir=Path("./web"),
+    options=OptimizeOptions(
+        mode="auto",         # auto|remux|transcode
+        target_height=1080,   # optional
+        fps=30.0,             # optional
+        crf=23,               # optional (transcode)
+        faststart=True,
+        suffix="_optimized",
+        dry_run=False,
+        profile="strict",    # optional: strict|balanced|throughput
+    ),
+)
+```
+
+Optimize behavior and artifacts:
+
+- `mode="auto"` chooses remux unless transform flags imply transcode.
+- Auto-selected hardware encoders are runtime-probed; Cosmos falls back to `libx264`
+  when a hardware path is unavailable at runtime.
+- `profile` activates a determinism profile (`strict`, `balanced`, `throughput`). The
+  `strict` profile pins `libx264`, 4 threads, and bitexact flags for cross-host reproducibility.
+  Per-field overrides (e.g. `encoder=`) always take precedence over profile defaults.
+- Run-level artifact: `cosmos_optimize_run.v1.json`
+- Output artifact (non-dry-run): `*.mp4.cosmos_optimized.v1.json`
+- Dry-run plan: `cosmos_optimize_dry_run.json`
+
+## Lineage graph API
+
+```python
+from pathlib import Path
+from cosmos.sdk.lineage import build_index
+
+index = build_index(Path("./outputs"))
+
+# Upstream ancestors of a given artifact
+ancestors = index.upstream("abc123...")
+
+# Downstream derivatives
+derivatives = index.downstream("abc123...")
+
+# Full chain (upstream + self + downstream)
+chain = index.chain("abc123...")
+
+# Nested tree dict (upstream direction)
+tree = index.tree("abc123...")
+
+# Serialize to JSON
+index.write(Path("lineage.json"))
+```
+
+The lineage index scans `*.cosmos_clip.v1.json`, `*.cosmos_view.v1.json`, and
+`*.cosmos_optimized.v1.json` sidecars recursively. Nodes are keyed by `output.sha256`
+and edges are derived from `source.sha256` join keys.
+
+## Provenance helper API
+
+```python
+from pathlib import Path
+from cosmos.sdk.provenance import sha256_file
+
+sha = sha256_file(Path("clip.mp4"))
+```
+
+See [Provenance](provenance.md) for join-key patterns and schema links.
+
+## Error handling notes
+
+- Missing required input paths raise `ValueError` early.
+- Dry-runs avoid ffmpeg execution and return planned output paths.
+- For real runs, ffmpeg stderr/stdout is persisted in sidecar logs; CLI wrappers map
+  failures to non-zero exits while SDK calls return successful outputs only.

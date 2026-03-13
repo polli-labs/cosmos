@@ -17,16 +17,21 @@ Run this ritual when any of the following happens:
    - `package_version`
    - behavior summary if changed.
 2. Update reference docs touched by behavior drift:
+   - `skills/cosmos/references/workflows.md`
    - `skills/cosmos/references/api-surfaces.md`
    - `skills/cosmos/references/architecture.md`
    - `skills/cosmos/references/integration-notes.md`
 3. Validate command surface receipts:
    - `uv run cosmos --help`
+   - `uv run cosmos process --help`
    - `uv run cosmos ingest run --help`
    - `uv run cosmos crop run --help`
+   - `uv run cosmos optimize run --help`
+   - `uv run cosmos lineage --help`
 4. Run quality gate:
    - canonical: `make check`
    - stepwise receipts when needed: `make fmt && make lint && make typecheck && make test`
+   - `uv run mkdocs build --strict`
 5. Post receipts to the standing Linear issue (template below).
 
 ## Standing Linear issue scaffold
@@ -52,9 +57,10 @@ Cadence
 
 Required checklist
 - [ ] SKILL.md updated (`source_commit`, `package_version`, changed behavior notes)
-- [ ] references updated for changed surfaces
-- [ ] CLI help receipts captured
+- [ ] references updated for changed surfaces (`workflows`, `api-surfaces`, `architecture`, `integration-notes`)
+- [ ] CLI help receipts captured (`cosmos`, `process`, `ingest`, `crop`, `optimize`, `lineage`)
 - [ ] `make check` receipt captured (or stepwise receipts when debugging)
+- [ ] `uv run mkdocs build --strict` receipt captured
 - [ ] drift risks and follow-ups documented
 
 Receipts

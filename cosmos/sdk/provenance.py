@@ -202,6 +202,33 @@ class CropView(BaseModel):
     env: dict[str, Any] | None = None
 
 
+class OptimizeRun(BaseModel):
+    schema_version: str = Field(default="1.0.0")
+    optimize_run_id: str
+    tool: str = Field(default="cosmos-optimize")
+    version: str
+    git: str | None = None
+    time: str
+    output_dir: str
+    ffmpeg: dict[str, Any] | None = None
+    system: dict[str, Any] | None = None
+    options: dict[str, Any] | None = None
+    inputs: list[dict[str, Any]] | None = None
+
+
+class OptimizedArtifact(BaseModel):
+    schema_version: str = Field(default="1.0.0")
+    optimized_id: str
+    optimize_run_id: str
+    mode: str
+    source: dict[str, Any]
+    output: OutputFile
+    video: VideoInfo
+    transform: dict[str, Any] | None = None
+    encode: dict[str, Any] | None = None
+    env: dict[str, Any] | None = None
+
+
 # -----------------------------
 # Writers
 # -----------------------------
@@ -324,6 +351,66 @@ def emit_crop_view(
     )
     out = output_path.with_suffix(output_path.suffix + ".cosmos_view.v1.json")
     write_json(out, json.loads(view.model_dump_json()))
+    return out
+
+
+def emit_optimize_run(
+    *,
+    output_dir: Path,
+    options: dict[str, Any] | None,
+    inputs: list[dict[str, Any]] | None,
+) -> tuple[str, Path]:
+    run = OptimizeRun(
+        optimize_run_id=new_id("opt"),
+        version=package_version("cosmos"),
+        time=_now_iso(),
+        output_dir=str(output_dir),
+        ffmpeg=ffmpeg_version(),
+        system=system_info(),
+        options=options,
+        inputs=inputs,
+    )
+    out = output_dir / "cosmos_optimize_run.v1.json"
+    write_json(out, json.loads(run.model_dump_json()))
+    return run.optimize_run_id, out
+
+
+def emit_optimized_artifact(
+    *,
+    optimize_run_id: str,
+    mode: str,
+    source_path: Path,
+    output_path: Path,
+    transform: dict[str, Any] | None,
+    encode_info: dict[str, Any] | None,
+) -> Path:
+    source_sha = sha256_file(source_path)
+    source: dict[str, Any] = {
+        "path": str(source_path),
+        "sha256": source_sha,
+        "video": ffprobe_video(source_path),
+    }
+    clip_meta = find_clip_for_file(source_path)
+    if clip_meta and isinstance(clip_meta.get("clip_id"), str):
+        source["clip_id"] = clip_meta["clip_id"]
+
+    stats = output_path.stat()
+    out_sha = sha256_file(output_path)
+    out_file = OutputFile(path=str(output_path), sha256=out_sha, bytes=stats.st_size)
+    vinfo = VideoInfo(**ffprobe_video(output_path))
+    artifact = OptimizedArtifact(
+        optimized_id=stable_human_id("optimized", output_path, out_sha),
+        optimize_run_id=optimize_run_id,
+        mode=mode,
+        source=source,
+        output=out_file,
+        video=vinfo,
+        transform=transform,
+        encode=encode_info,
+        env={"ffmpeg": ffmpeg_version(), "system": system_info()},
+    )
+    out = output_path.with_suffix(output_path.suffix + ".cosmos_optimized.v1.json")
+    write_json(out, json.loads(artifact.model_dump_json()))
     return out
 
 

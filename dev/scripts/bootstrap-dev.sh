@@ -162,7 +162,7 @@ clone_or_reuse_repo() {
 
 sync_environment() {
   local -a sync_args
-  sync_args=(sync --extra dev)
+  sync_args=(sync --extra dev --locked)
   if [ "$INSTALL_DOCS" = "1" ]; then
     sync_args+=(--extra docs)
   fi

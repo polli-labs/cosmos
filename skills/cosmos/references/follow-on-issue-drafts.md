@@ -16,7 +16,7 @@ Draft issues and PR scopes derived from current repo state, create-cli guidance,
 
 ### Decision
 
-Keep a unified `cosmos` CLI as the canonical interface, preserve `squarecrop` as compatibility alias for one minor cycle, and standardize machine-safe output contracts.
+Keep a unified `cosmos` CLI as the canonical interface and standardize machine-safe output contracts.
 
 ### Scope
 
@@ -40,13 +40,12 @@ Keep a unified `cosmos` CLI as the canonical interface, preserve `squarecrop` as
 
 - `cosmos <subcommand> --json` emits parseable JSON to stdout with no mixed log lines.
 - Missing required inputs in non-interactive mode fail with actionable error and non-zero exit.
-- `squarecrop` remains functional but prints deprecation warning and target removal version.
 - CLI docs updated to reflect canonical surface and migration path.
 
 ### Recommended PR split
 
 1. PR A: output/error contract and exit-code map (`--json`/`--plain`, stderr discipline, tests).
-2. PR B: command-tree normalization + deprecation shims (`squarecrop`, `pipeline` behavior notices).
+2. PR B: command-tree normalization + legacy alias handling (`pipeline` behavior notices).
 3. PR C: docs/migration guide + command examples + regression tests for non-interactive flows.
 
 ## 2) Standing recurring issue for skill freshness ritual
