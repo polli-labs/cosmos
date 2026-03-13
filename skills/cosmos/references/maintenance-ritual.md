@@ -22,14 +22,15 @@ Run this ritual when any of the following happens:
    - `skills/cosmos/references/architecture.md`
    - `skills/cosmos/references/integration-notes.md`
 3. Validate command surface receipts:
-   - `. .venv/bin/activate && cosmos --help`
-   - `. .venv/bin/activate && cosmos process --help`
-   - `. .venv/bin/activate && cosmos ingest run --help`
-   - `. .venv/bin/activate && cosmos crop run --help`
-   - `. .venv/bin/activate && cosmos optimize run --help`
-   - `. .venv/bin/activate && cosmos lineage --help`
+   - `uv run cosmos --help`
+   - `uv run cosmos process --help`
+   - `uv run cosmos ingest run --help`
+   - `uv run cosmos crop run --help`
+   - `uv run cosmos optimize run --help`
+   - `uv run cosmos lineage --help`
 4. Run quality gate:
-   - `make fmt && make lint && make typecheck && make test`
+   - canonical: `make check`
+   - stepwise receipts when needed: `make fmt && make lint && make typecheck && make test`
    - `uv run mkdocs build --strict`
 5. Post receipts to the standing Linear issue (template below).
 
@@ -58,7 +59,7 @@ Required checklist
 - [ ] SKILL.md updated (`source_commit`, `package_version`, changed behavior notes)
 - [ ] references updated for changed surfaces (`workflows`, `api-surfaces`, `architecture`, `integration-notes`)
 - [ ] CLI help receipts captured (`cosmos`, `process`, `ingest`, `crop`, `optimize`, `lineage`)
-- [ ] `make fmt && make lint && make typecheck && make test` receipts captured
+- [ ] `make check` receipt captured (or stepwise receipts when debugging)
 - [ ] `uv run mkdocs build --strict` receipt captured
 - [ ] drift risks and follow-ups documented
 

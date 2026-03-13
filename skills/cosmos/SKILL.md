@@ -1,14 +1,14 @@
 ---
 name: cosmos
 description: "Cosmos repo knowledge -- provenance-first video normalization toolkit (ingest/crop/preview/optimize/lineage) with adapter-based ingest and determinism profiles. Inject before modifying cosmos CLI/SDK/provenance or release workflows."
-version: "0.2.0"
+version: "0.2.1"
 x:
   source_repo: "cosmos"
   source_branch: "main"
   source_commit: "HEAD"
   package_version: "0.7.0"
   generator: "codex"
-  last_modified: "2026-03-02T17:10:00Z"
+  last_modified: "2026-03-13T18:45:00Z"
 ---
 
 # Cosmos
@@ -48,12 +48,14 @@ Load only what you need for the request:
 ## First Steps
 
 1. Read `AGENTS.md` in this repo.
-2. Use the router above and open only the minimum relevant reference file(s).
-3. Capture command-surface receipts for touched surfaces with `uv run cosmos ... --help`.
-4. Run quality gate before handoff: `make fmt && make lint && make typecheck && make test`.
+2. Read `CONTRIBUTING.md` for contributor setup, bootstrap, and canonical quality-gate commands.
+3. Use the router above and open only the minimum relevant reference file(s).
+4. Capture command-surface receipts for touched surfaces with `uv run cosmos ... --help`.
+5. Run the canonical quality gate before handoff: `make check`.
 
 ## Working Rules
 
+- Route contributors to `CONTRIBUTING.md` and `dev/scripts/bootstrap-dev.sh` instead of repeating setup steps in ad hoc notes.
 - Keep one CLI (`cosmos`) and one SDK (`cosmos.sdk`) mental model; route business logic through SDK layers.
 - Use `cosmos process` as the canonical ingest -> optional crop workflow surface.
 - Preserve create-cli contracts: stable flag naming, explicit `--json/--plain`, and non-interactive safety flags (`--yes/--no-input`) on commands that expose prompts.
@@ -61,6 +63,7 @@ Load only what you need for the request:
 - Preserve crop semantics (`offset_x`/`offset_y` in `[-1, 1]`; rect clamp/even-round behavior).
 - Keep provenance contracts and join key stable (`view.source.sha256 == clip.output.sha256`).
 - Use shared ffmpeg helpers in `cosmos/ffmpeg/*` rather than shelling ad hoc `ffmpeg`/`ffprobe` commands.
+- Use `make check` as the canonical local gate, and refresh `uv.lock` with `uv lock` whenever dependency metadata changes.
 
 ## v0.7.0 Scope Snapshot
 

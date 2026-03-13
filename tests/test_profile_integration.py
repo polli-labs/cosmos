@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 from cosmos.cli.cosmos_app import app
 from cosmos.sdk.crop import CropJob, crop
+from cosmos.sdk.ingest import IngestOptions
 from cosmos.sdk.optimize import OptimizeOptions, optimize
 from typer.testing import CliRunner
 
@@ -86,8 +87,10 @@ class TestProfileCLIPassthrough:
 
         captured_opts: list[OptimizeOptions] = []
 
-        def _capture(*_args, **kwargs):
-            captured_opts.append(kwargs.get("options"))
+        def _capture(*_args: object, **kwargs: object) -> list[Path]:
+            options = kwargs.get("options")
+            assert isinstance(options, OptimizeOptions)
+            captured_opts.append(options)
             return [out_dir / "clip_optimized.mp4"]
 
         monkeypatch.setattr("cosmos.cli.optimize_cli.optimize", _capture)
@@ -125,10 +128,12 @@ class TestProfileCLIPassthrough:
             lambda **_kwargs: None,
         )
 
-        captured_opts: list[object] = []
+        captured_opts: list[IngestOptions] = []
 
-        def _capture(*_args, **kwargs):
-            captured_opts.append(kwargs.get("options"))
+        def _capture(*_args: object, **kwargs: object) -> list[Path]:
+            options = kwargs.get("options")
+            assert isinstance(options, IngestOptions)
+            captured_opts.append(options)
             return [output_dir / "clip.mp4"]
 
         monkeypatch.setattr("cosmos.cli.ingest_cli.ingest", _capture)

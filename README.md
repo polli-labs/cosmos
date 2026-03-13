@@ -44,13 +44,26 @@ changing CLI, SDK, ffmpeg policy, provenance fields, or release behavior.
 ## Install
 
 - Production: `pip install polli-cosmos`
-- Development (uv):
+- Development (recommended from an existing checkout):
 
 ```bash
-uv venv .venv
-. .venv/bin/activate
-uv pip install -e ".[dev]"
+bash dev/scripts/bootstrap-dev.sh
 ```
+
+- Development (manual):
+
+```bash
+make dev-setup
+```
+
+- Docs tooling:
+
+```bash
+make docs-setup
+```
+
+- If dependency metadata changes, refresh the committed lockfile with `uv lock`.
+- Contributor docs and the canonical quality gate live in `CONTRIBUTING.md`.
 
 ## CLI quickstart
 
@@ -149,11 +162,9 @@ if the host advertises an encoder that is not actually usable.
 ## Developer workflow
 
 ```bash
-make uv-sync
-make fmt
-make lint
-make typecheck
-make test
+make dev-setup
+make check
+uv run mkdocs build --strict
 ```
 
 ## Optional local E2E lanes

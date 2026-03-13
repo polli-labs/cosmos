@@ -104,7 +104,7 @@ def ffprobe_video(path: Path) -> dict[str, Any]:
 
 def system_info() -> dict[str, Any]:
     try:
-        import psutil  # type: ignore
+        import psutil
 
         mem_gb = round(psutil.virtual_memory().total / (1024**3), 2)
     except Exception:

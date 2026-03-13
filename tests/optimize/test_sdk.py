@@ -4,6 +4,7 @@ import importlib
 import json
 import subprocess
 from pathlib import Path
+from typing import cast
 
 import pytest
 from cosmos.sdk.optimize import OptimizeOptions, optimize
@@ -221,5 +222,6 @@ def test_optimize_transcode_records_hardware_attempted_from_runtime_probe(
 
     encode_info = captured["encode_info"]
     assert isinstance(encode_info, dict)
+    encode_info = cast(dict[str, object], encode_info)
     assert encode_info["impl"] == "libx264"
     assert encode_info["hardware_attempted"] == "h264_nvenc"

@@ -7,6 +7,7 @@ from pathlib import Path
 
 from cosmos.cli.cosmos_app import app
 from cosmos.preview.pipeline import PreviewRunResult
+from cosmos.sdk.ingest import IngestOptions
 from typer.testing import CliRunner
 
 optimize_mod = importlib.import_module("cosmos.sdk.optimize")
@@ -462,10 +463,12 @@ def test_ingest_adapter_flag_passed_through(monkeypatch, tmp_path: Path) -> None
         lambda **_kwargs: None,
     )
 
-    captured_opts: list[object] = []
+    captured_opts: list[IngestOptions] = []
 
-    def _capture_ingest(*_args, **kwargs):
-        captured_opts.append(kwargs.get("options"))
+    def _capture_ingest(*_args: object, **kwargs: object) -> list[Path]:
+        options = kwargs.get("options")
+        assert isinstance(options, IngestOptions)
+        captured_opts.append(options)
         return [output_dir / "clip.mp4"]
 
     monkeypatch.setattr("cosmos.cli.ingest_cli.ingest", _capture_ingest)

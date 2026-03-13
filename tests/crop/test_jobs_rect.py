@@ -174,4 +174,6 @@ def test_parse_rect_job_with_annotations(tmp_path: Path) -> None:
         )
     )
     jobs = parse_jobs_json(jobs_file)
-    assert jobs[0].annotations == {"pollinators": ["bee"], "plants": ["sage"]}
+    job = jobs[0]
+    assert isinstance(job, RectCropJob)
+    assert job.annotations == {"pollinators": ["bee"], "plants": ["sage"]}

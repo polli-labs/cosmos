@@ -3,8 +3,11 @@ from __future__ import annotations
 import importlib
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 
-from cosmos.ingest.processor import ProcessingResult
+from cosmos.ingest.adapter import ClipDescriptor
+from cosmos.ingest.manifest import ClipInfo, Position
+from cosmos.ingest.processor import ProcessingResult, VideoProcessor
 from cosmos.sdk.ingest import IngestOptions, _emit_clip_provenance, ingest
 
 SAMPLE_MANIFEST = """<?xml version="1.0"?>
@@ -14,6 +17,38 @@ SAMPLE_MANIFEST = """<?xml version="1.0"?>
         InStr="14:26:40.000 11/14/2023"/>
 </Clip_Manifest>
 """
+
+
+def _clip_descriptor(
+    *,
+    name: str,
+    start_time_sec: float,
+    end_time_sec: float | None,
+    frame_start: int,
+    frame_end: int,
+) -> ClipDescriptor:
+    return ClipDescriptor(
+        name=name,
+        start_time_sec=start_time_sec,
+        end_time_sec=end_time_sec,
+        frame_start=frame_start,
+        frame_end=frame_end,
+    )
+
+
+def _clip_info(*, name: str, duration: float, frame_count: int) -> ClipInfo:
+    end_epoch = duration if duration > 0 else None
+    end_pos = Position(0, 0, duration) if duration > 0 else None
+    return ClipInfo(
+        name=name,
+        start_epoch=0.0,
+        end_epoch=end_epoch,
+        start_pos=Position(0, 0, 0.0),
+        end_pos=end_pos,
+        start_idx=0,
+        end_idx=frame_count,
+        start_time=None,
+    )
 
 
 def test_ingest_run_provenance_uses_detected_manifest_for_cosm(
@@ -50,7 +85,10 @@ def test_ingest_run_provenance_uses_detected_manifest_for_cosm(
     )
 
     assert captured["manifest_path"] == manifest_path
-    assert captured["options"]["adapter"] == "cosm"
+    options = captured["options"]
+    assert isinstance(options, dict)
+    options = cast(dict[str, object], options)
+    assert options["adapter"] == "cosm"
 
 
 def test_emit_clip_provenance_does_not_double_count_end_time(
@@ -69,7 +107,7 @@ def test_emit_clip_provenance_does_not_double_count_end_time(
 
     monkeypatch.setattr(ingest_mod, "emit_clip_artifact", _capture_clip_emit)
 
-    clip = SimpleNamespace(
+    clip = _clip_descriptor(
         name="CLIP1",
         start_time_sec=10.0,
         end_time_sec=20.0,
@@ -79,7 +117,7 @@ def test_emit_clip_provenance_does_not_double_count_end_time(
     clip_result = SimpleNamespace(clip=SimpleNamespace(duration=10.0, frame_count=100))
     spec = SimpleNamespace(filter_complex="dummy-filter")
     result = ProcessingResult(
-        clip=SimpleNamespace(duration=10.0, frame_count=100),
+        clip=_clip_info(name="CLIP1", duration=10.0, frame_count=100),
         output_path=output_mp4,
         duration=10.0,
         frames_processed=100,
@@ -94,7 +132,7 @@ def test_emit_clip_provenance_does_not_double_count_end_time(
         spec=spec,
         res=result,
         options=IngestOptions(crf=23),
-        processor=SimpleNamespace(),
+        processor=cast(VideoProcessor, SimpleNamespace()),
     )
 
     assert captured["time_ms"] == (10000.0, 20000.0)
@@ -117,7 +155,7 @@ def test_emit_clip_provenance_probes_output_duration_when_unknown(
     monkeypatch.setattr(ingest_mod, "emit_clip_artifact", _capture_clip_emit)
     monkeypatch.setattr(ingest_mod, "ffprobe_video", lambda _p: {"duration_sec": 7.25})
 
-    clip = SimpleNamespace(
+    clip = _clip_descriptor(
         name="CLIP2",
         start_time_sec=5.0,
         end_time_sec=None,
@@ -127,7 +165,7 @@ def test_emit_clip_provenance_probes_output_duration_when_unknown(
     clip_result = SimpleNamespace(clip=SimpleNamespace(duration=0.0, frame_count=10))
     spec = SimpleNamespace(filter_complex="dummy-filter")
     result = ProcessingResult(
-        clip=SimpleNamespace(duration=0.0, frame_count=10),
+        clip=_clip_info(name="CLIP2", duration=0.0, frame_count=10),
         output_path=output_mp4,
         duration=0.0,
         frames_processed=10,
@@ -142,7 +180,7 @@ def test_emit_clip_provenance_probes_output_duration_when_unknown(
         spec=spec,
         res=result,
         options=IngestOptions(crf=23),
-        processor=SimpleNamespace(),
+        processor=cast(VideoProcessor, SimpleNamespace()),
     )
 
     assert captured["time_ms"] == (5000.0, 12250.0)
