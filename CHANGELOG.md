@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## 0.7.1 — Quality gate parity + reproducible dev bootstrap (2026-03-13)
+- Replace `mypy` with Astral `ty` as the required type gate, with warnings treated as errors.
+- Expand the typed surface to include `tests/**/*.py` and fix newly surfaced test typing gaps on the current `v0.7.x` codebase.
+- Standardize local and CI workflows on `uv`-managed environments, including a canonical `make check` gate and locked `uv sync` semantics.
+- Add `dev/scripts/bootstrap-dev.sh` for idempotent, non-interactive contributor setup on macOS and Linux.
+- Refresh contributor docs, the in-repo Cosmos skill, and release-maintenance guidance for the new quality-gate workflow.
+
 ## 0.7.0 — Adapter extensibility + lineage graph + determinism profiles (2026-03-02)
 - Add ingest adapter contract (`IngestAdapter` Protocol) for multiple source layouts behind one normalized ingest pipeline.
   - New typed adapter primitives in `cosmos.ingest.adapter` (`ClipDescriptor`, `FfmpegInputSpec`, `IngestAdapter`).

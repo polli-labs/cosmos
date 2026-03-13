@@ -1,14 +1,14 @@
 ---
 name: cosmos
 description: "Cosmos repo knowledge -- provenance-first video normalization toolkit (ingest/crop/preview/optimize/lineage) with adapter-based ingest and determinism profiles. Inject before modifying cosmos CLI/SDK/provenance or release workflows."
-version: "0.2.1"
+version: "0.2.2"
 x:
   source_repo: "cosmos"
   source_branch: "main"
-  source_commit: "HEAD"
-  package_version: "0.7.0"
+  source_commit: "97195d2"
+  package_version: "0.7.1"
   generator: "codex"
-  last_modified: "2026-03-13T18:45:00Z"
+  last_modified: "2026-03-13T19:15:00Z"
 ---
 
 # Cosmos
@@ -17,7 +17,7 @@ Cosmos is a provenance-first video normalization toolkit. The CLI/SDK ingests he
 
 ## Quick Facts
 
-- Version: 0.7.0
+- Version: 0.7.1
 - Canonical CLI: `cosmos` with root commands `process`, `ingest`, `crop`, `optimize`, `provenance`, `lineage`.
 - Back-compat alias: hidden `cosmos pipeline` command still exists; do not use it in new docs/examples.
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions, DeterminismProfile, resolve_profile`.
@@ -65,7 +65,7 @@ Load only what you need for the request:
 - Use shared ffmpeg helpers in `cosmos/ffmpeg/*` rather than shelling ad hoc `ffmpeg`/`ffprobe` commands.
 - Use `make check` as the canonical local gate, and refresh `uv.lock` with `uv lock` whenever dependency metadata changes.
 
-## v0.7.0 Scope Snapshot
+## Current Scope Snapshot
 
 - M1 adapter architecture: `IngestAdapter` contract + `cosm`/`generic-media` adapters + auto-detect/override flow.
 - M2 lineage graph surfaces: SDK index traversal + CLI query commands for upstream/downstream/chain/tree.
