@@ -14,11 +14,13 @@ Cosmos is currently strongest in two areas:
 
 - COSM-native ingest: manifest-aware conversion from camera export layouts to normalized MP4 clips.
 - General MP4 post-processing: crop, preview, optimize, and provenance operations that work on standard MP4 inputs.
+- Typed video substrate access: ffprobe-backed metadata and RGB frame extraction for SDK consumers.
 
 Cosmos is not limited to a single camera vendor at the architecture level. The long-term model is:
 
 - many ingest adapters
 - one normalized runtime contract
+- one typed video probe/decode substrate
 - one provenance model
 
 ## Start with the workflow you need

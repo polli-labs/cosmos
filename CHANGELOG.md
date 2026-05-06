@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+- Add `cosmos.video` and `cosmos.sdk.video` typed video probe/frame extraction helpers backed
+  by Cosmos ffmpeg/ffprobe resolution.
+- Batch sparse index-based video frame extraction into a single FFmpeg pass while preserving
+  requested frame order and duplicate index semantics.
+- Add a seek-aware sparse extraction plan for late or widely separated frame-index requests,
+  using cached ffprobe packet timestamps when the cost model predicts a win and preserving the
+  existing full-scan batch path for dense requests.
+- Add an optional `video-av` extra and `COSMOS_VIDEO_BACKEND=pyav|auto|ffmpeg-cli`
+  selection for in-process PyAV frame extraction, with the FFmpeg CLI backend retained as
+  the default for stable byte output. `auto` is platform-aware: macOS tries PyAV with
+  FFmpeg CLI fallback, while Linux keeps the faster FFmpeg CLI path unless PyAV is forced.
+- Add an optional `video-torchcodec` extra and explicit
+  `COSMOS_VIDEO_BACKEND=torchcodec` CPU backend for benchmarking TorchCodec through the
+  existing `RgbFrame.rgb24` byte contract.
+- Align provenance ffmpeg/ffprobe helper lookup with the shared Cosmos resolver policy.
+
 ## 0.7.1 — Quality gate parity + reproducible dev bootstrap (2026-03-13)
 - Replace `mypy` with Astral `ty` as the required type gate, with warnings treated as errors.
 - Expand the typed surface to include `tests/**/*.py` and fix newly surfaced test typing gaps on the current `v0.7.x` codebase.

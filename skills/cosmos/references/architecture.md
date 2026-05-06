@@ -5,7 +5,10 @@ Detailed module map for the current `cosmos` repo state.
 ## Package map
 
 - `cosmos/sdk/__init__.py`
-  - public exports for ingest/crop/preview/optimize and determinism profile helpers.
+  - public exports for video probe/decode, ingest/crop/preview/optimize, and determinism
+    profile helpers.
+- `cosmos/sdk/video.py`
+  - stable SDK re-export surface for typed video probe/decode helpers.
 - `cosmos/sdk/ingest.py`
   - ingest orchestrator and `IngestOptions`. Uses adapter contract for source-layout-specific logic.
 - `cosmos/sdk/crop.py`
@@ -20,6 +23,16 @@ Detailed module map for the current `cosmos` repo state.
   - emitters/resolvers for run/artifact provenance.
 - `cosmos/sdk/lineage.py`
   - lineage index builder and graph traversal (DAG over provenance sidecars).
+
+- `cosmos/video/types.py`
+  - `VideoProbe`, `RgbFrame`, and video-specific error classes.
+- `cosmos/video/probe.py`
+  - ffprobe JSON-backed first-video-stream metadata probing.
+- `cosmos/video/decode.py`
+  - public video decode validation, backend selection, and `RgbFrame` assembly.
+- `cosmos/video/backends/`
+  - internal decode backend protocol plus concrete `ffmpeg-cli`, optional PyAV,
+    and optional TorchCodec implementations for raw `rgb24` byte extraction.
 
 - `cosmos/ingest/adapter.py`
   - `IngestAdapter` Protocol, `ClipDescriptor`, `FfmpegInputSpec` — adapter contract.
@@ -102,6 +115,17 @@ Join key stability requirement:
 - Rect crop now supports normalized and pixel coordinate specs.
 - Crop CLI supports `--crop-mode rect` and curated views ingestion.
 - Crop preview now supports contact sheets + stacked overlays with frame selectors and a GUI-ready preview-plan contract.
+- Video probe/decode now has a typed SDK substrate (`cosmos.sdk.video`) for downstream
+  consumers that need metadata and RGB frames without depending on Decord or image-array
+  return types.
+- The default video decode backend remains FFmpeg CLI for stable system-FFmpeg bytes.
+  Optional PyAV is lazy-imported behind `polli-cosmos[video-av]` and selected only via
+  `COSMOS_VIDEO_BACKEND=pyav`, or by platform-aware `auto` on macOS with FFmpeg CLI
+  fallback. Linux `auto` keeps FFmpeg CLI unless PyAV is forced.
+- Optional TorchCodec is lazy-imported behind `polli-cosmos[video-torchcodec]` and selected
+  only via `COSMOS_VIDEO_BACKEND=torchcodec`. It decodes CPU tensors with
+  `dimension_order=NHWC` and converts them back to Cosmos' public `RgbFrame.rgb24`
+  byte contract.
 - Ingest and crop paths honor ffmpeg resolution helpers (env override, cosmos-managed binary, PATH fallback).
 - Linux+NVIDIA bootstrap prompt can install NVENC-capable ffmpeg unless suppressed.
 - Ingest uses an adapter contract (`IngestAdapter` Protocol) for source-layout-specific logic. Built-in adapters: `cosm` (COSM C360 quad-tile) and `generic-media` (flat video directory). Auto-detected by default; overridable via `--adapter` CLI flag or `IngestOptions.adapter` SDK parameter.

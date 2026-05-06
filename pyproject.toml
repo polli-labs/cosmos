@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.24,<2"]
 build-backend = "hatchling.build"
 
 [project]
@@ -35,6 +35,20 @@ docs = [
   "mkdocstrings>=0.24,<1",
   "mkdocstrings-python>=1.10,<2"
 ]
+release = [
+  "build>=1.2,<2",
+  "hatchling>=1.24,<2",
+  "twine>=6,<7",
+]
+video-av = [
+    "av>=14,<17",
+    "numpy>=1.26,<3",
+]
+video-torchcodec = [
+    "numpy>=1.26,<3",
+    "torch>=2.11,<2.12",
+    "torchcodec>=0.11.1,<0.12",
+]
 
 [project.scripts]
 cosmos = "cosmos.cli.cosmos_app:main"
@@ -59,6 +73,22 @@ docstring-code-format = true
 addopts = "-q"
 minversion = "7.0"
 pythonpath = ["."]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv]
+exclude-newer = "7 days"
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "video-torchcodec" },
+]
+torchcodec = [
+    { index = "pytorch-cpu", extra = "video-torchcodec" },
+]
 
 [tool.ty.environment]
 python-version = "3.10"

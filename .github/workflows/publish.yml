@@ -47,25 +47,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install build tools
-        run: |
-          python -m pip install -U pip
-          pip install build twine
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+      - name: Sync release environment
+        run: uv sync --extra release --locked
       - name: Build wheel
-        run: python -m build --wheel
+        run: uv run python -m build --wheel --no-isolation
+      - name: Check wheel
+        run: uv run twine check dist/*.whl
       - name: Publish to TestPyPI
         if: startsWith(github.ref, 'refs/tags/v')
         continue-on-error: true  # do not block PyPI publish if TestPyPI creds/env unavailable
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_KEY }}
-        run: twine upload -r testpypi dist/*.whl
+        run: uv run twine upload -r testpypi dist/*.whl
       - name: Publish to PyPI
         if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'polli-labs/cosmos'
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_KEY }}
-        run: twine upload dist/*.whl
+        run: uv run twine upload dist/*.whl
       - name: Upload wheel as GitHub release asset
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
@@ -84,10 +86,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: |
-          python -m pip install -U pip
-          pip install -e ".[docs]"
-      - run: mkdocs build
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --extra docs --locked
+      - run: uv run mkdocs build --strict
       - uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.POLLISERVE0_SSH_PRIVATE_KEY }}

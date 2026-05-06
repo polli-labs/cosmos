@@ -3,8 +3,8 @@ title: "Cosmos — Agent/Dev Guide"
 doc_type: "agents"
 status: "active"
 owner: "polli-labs"
-last_modified: "2026-03-02T19:01:22.634Z"
-last_reviewed: "2026-03-02T19:01:22.634Z"
+last_modified: "2026-05-06T22:35:00Z"
+last_reviewed: "2026-05-06T22:35:00Z"
 scope: "repository:cosmos"
 ---
 
@@ -24,7 +24,7 @@ Cosmos is a provenance-first video normalization toolkit:
 - generate deterministic web-ready derivatives
 - emit machine-joinable provenance sidecars
 
-## v0.7.0 command surfaces
+## Command surfaces
 
 - Root commands:
   - `cosmos process` (canonical ingest -> optional crop flow)
@@ -35,6 +35,12 @@ Cosmos is a provenance-first video normalization toolkit:
   - `cosmos lineage`
 - Hidden compatibility alias:
   - `cosmos pipeline` (do not use in new docs/workflows)
+- SDK video surface:
+  - `cosmos.sdk.video` exposes typed `VideoProbe` metadata and `RgbFrame`
+    `rgb24` byte extraction without NumPy/PIL return objects.
+  - Optional decode backends stay explicit and lazy-imported. FFmpeg CLI is the
+    default backend; PyAV and TorchCodec are optional extras for benchmarked
+    experiments.
 
 ## Repo map
 
@@ -44,6 +50,8 @@ Cosmos is a provenance-first video normalization toolkit:
 - `cosmos/crop/` — square/rect crop execution and jobs parsing
 - `cosmos/preview/` — contact sheet + stacked-overlay preview generation
 - `cosmos/ffmpeg/` — ffmpeg/encoder detection and argument builders
+- `cosmos/video/` — typed FFmpeg-backed video probe/frame extraction and
+  optional backend experiments
 - `cosmos/cli/` — Typer app surfaces (thin wrappers over SDK)
 - `schema/cosmos/`, `docs/schemas/` — provenance schema contracts
 - `skills/cosmos/` — in-repo Cosmos skill package (release-critical)
@@ -84,6 +92,12 @@ Cosmos is a provenance-first video normalization toolkit:
   - square offsets: `offset_x` / `offset_y` in `[-1, 1]`
   - rect geometry clamp/even-round behavior
 - Use shared ffmpeg helpers; avoid ad hoc command construction.
+- Keep optional video backends lazy-imported. Importing `cosmos.sdk.video`
+  must not require PyAV, NumPy, TorchCodec, or PyTorch unless that backend is
+  selected.
+- For public-promotion work, preserve public-owned security and instruction
+  surfaces while keeping the package, docs, workflow, and lockfile surfaces at
+  public-safe parity.
 
 ## Release ritual (critical)
 
@@ -96,10 +110,10 @@ Before tagging any release, these are required:
   - Update `skills/cosmos/SKILL.md` and relevant `skills/cosmos/references/*`.
   - Follow `skills/cosmos/references/maintenance-ritual.md`.
 3. **Instruction audit**
-  - Refresh this template (`docs/org-kb/agents/templates/repos/cosmos/AGENTS.cosmos.md.mustache`) when behavior changed.
-  - Re-render `AGENTS.md` for cosmos and keep `CLAUDE.md` aligned (symlink preferred).
+  - Refresh this file and `docs/migration/dev_public_release_contract.md`
+    whenever repo-local remotes, clone paths, or standing overrides change.
 4. **Code quality gate**
-  - `make fmt && make lint && make typecheck && make test`.
+  - `make check`.
 5. **Receipts**
   - Leave explicit receipts in Linear release/tracker issues (commands, PRs, runs, tags, release URL/assets).
 
@@ -108,7 +122,7 @@ Treat docs + skill + AGENTS/CLAUDE freshness as release-quality requirements, no
 ## Canonical commands
 
 ```bash
-make fmt && make lint && make typecheck && make test
+make check
 uv run mkdocs build --strict
 uv run cosmos --help
 uv run cosmos process --help
@@ -121,4 +135,5 @@ uv run cosmos lineage --help
 ## Public/private boundary
 
 - Keep this repo’s AGENTS content public-safe.
-- If private cosmos integration context is needed, put it in polli monorepo partials (for example under `docs/org-kb/agents/templates/partials/`) and compose it only in private instruction targets.
+- Private development guidance belongs in `polli-labs/cosmos-dev`; do not copy
+  private-repo worktree instructions into this public guide.
