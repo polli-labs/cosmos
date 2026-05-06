@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## 0.8.0 — Video substrate + supply-chain-hardened release surface (2026-05-06)
+
 - Add `cosmos.video` and `cosmos.sdk.video` typed video probe/frame extraction helpers backed
   by Cosmos ffmpeg/ffprobe resolution.
 - Batch sparse index-based video frame extraction into a single FFmpeg pass while preserving
@@ -19,6 +21,9 @@ All notable changes to this project will be documented in this file.
   `COSMOS_VIDEO_BACKEND=torchcodec` CPU backend for benchmarking TorchCodec through the
   existing `RgbFrame.rgb24` byte contract.
 - Align provenance ffmpeg/ffprobe helper lookup with the shared Cosmos resolver policy.
+- Promote the public release surface to the locked supply-chain posture from `cosmos-dev`:
+  committed `uv.lock`, seven-day uv resolver cooldown, locked CI/docs/publish environments,
+  locked release tooling, and bounded Hatchling build backend resolution.
 
 ## 0.7.1 — Quality gate parity + reproducible dev bootstrap (2026-03-13)
 - Replace `mypy` with Astral `ty` as the required type gate, with warnings treated as errors.

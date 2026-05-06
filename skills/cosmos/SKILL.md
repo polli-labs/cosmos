@@ -6,9 +6,9 @@ x:
   source_repo: "cosmos-dev"
   source_branch: "main"
   source_commit: "02fcf23"
-  package_version: "0.7.1"
+  package_version: "0.8.0"
   generator: "codex"
-  last_modified: "2026-04-17T22:00:00Z"
+  last_modified: "2026-05-06T23:45:27Z"
 ---
 
 # Cosmos
@@ -17,7 +17,7 @@ Cosmos is a provenance-first video normalization toolkit. The CLI/SDK ingests he
 
 ## Quick Facts
 
-- Version: 0.7.1
+- Version: 0.8.0
 - Canonical CLI: `cosmos` with root commands `process`, `ingest`, `crop`, `optimize`, `provenance`, `lineage`.
 - Back-compat alias: hidden `cosmos pipeline` command still exists; do not use it in new docs/examples.
 - SDK entry points: `from cosmos.sdk import ingest, IngestOptions, crop, CropJob, optimize, OptimizeOptions, probe_video, extract_frames_at_indices, extract_frames_at_times, DeterminismProfile, resolve_profile`.

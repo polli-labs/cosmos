@@ -9,7 +9,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-04-29T20:59:07.798667Z"
+exclude-newer = "2026-04-29T23:46:03.753709Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -1286,7 +1286,7 @@ wheels = [
 
 [[package]]
 name = "polli-cosmos"
-version = "0.7.1"
+version = "0.8.0"
 source = { editable = "." }
 dependencies = [
     { name = "pillow" },
