@@ -22,9 +22,8 @@ ffmpeg -version
 ## Install Cosmos
 
 ```bash
-uv venv .venv
-. .venv/bin/activate
-uv pip install -e ".[dev]"
+uv sync --extra dev --locked
+uv run cosmos --help
 ```
 
 ## Source adapters

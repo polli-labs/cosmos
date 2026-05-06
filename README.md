@@ -12,13 +12,14 @@ emits machine-joinable sidecars so downstream systems can trust, trace, and repr
 Cosmos is designed for both operators and automation:
 
 - `cosmos` CLI for ingest/crop/optimize/provenance workflows
-- `cosmos.sdk` for stable Python integration
+- `cosmos.sdk` for stable Python integration, including typed video probe/frame extraction
 - run-level and artifact-level provenance sidecars for reproducibility
 
 ## Scope today
 
 - First-class adapter for COSM camera ingest workflows (manifest-aware processing)
 - General MP4 post-processing surfaces for crop, preview, optimize, and provenance lookup
+- Typed FFmpeg-backed video metadata and RGB frame extraction for downstream SDK consumers
 - Deterministic CLI contracts suitable for unattended agent execution
 
 The near-term direction is to add more ingestion adapters while keeping the same normalized

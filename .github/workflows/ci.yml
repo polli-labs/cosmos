@@ -2,13 +2,19 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        py: ["3.10", "3.11", "3.12"]
+        py: ${{ ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main') && fromJson('["3.10","3.11","3.12"]') || fromJson('["3.12"]') }}
     steps:
       - uses: actions/checkout@v4
 

@@ -30,6 +30,7 @@ nav:
       - ingest run flags (legacy reference): ingest-reference.md
       - crop run flags (legacy reference): crop-reference.md
   - SDK: sdk.md
+  - Video Decode Benchmark: video-benchmark.md
   - Provenance: provenance.md
   - Lineage: lineage.md
   - Reference:

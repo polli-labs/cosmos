@@ -281,7 +281,7 @@ def _emit_clip_provenance(
             if duration_sec <= 0 and res.output_path is not None:
                 probed = ffprobe_video(res.output_path)
                 probed_duration = probed.get("duration_sec")
-                if isinstance(probed_duration, (int, float)) and probed_duration > 0:
+                if isinstance(probed_duration, int | float) and probed_duration > 0:
                     duration_sec = float(probed_duration)
             end_time_sec = clip.start_time_sec + duration_sec
         encode_info = {

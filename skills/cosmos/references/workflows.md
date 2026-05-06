@@ -123,3 +123,47 @@ cd /home/caleb/repo/cosmos
 make fmt && make lint && make typecheck && make test
 uv run mkdocs build --strict
 ```
+
+## 9) Video decode backend benchmark
+
+Use this when comparing `cosmos.sdk.video` backends or checking whether Decord
+can be removed from a downstream Linux path:
+
+```bash
+cd /home/caleb/repo/cosmos
+uv run python dev/benchmarks/cosmos_video_decode_benchmark.py \
+  --out-dir _work/pol-1185/synthetic-smoke
+```
+
+Pass real WFC clips explicitly when they are available:
+
+```bash
+uv run python dev/benchmarks/cosmos_video_decode_benchmark.py \
+  --clip /path/to/CLIP17_0000-0015_unidentified-fly-or-bee_on_parsley.mp4 \
+  --clip /path/to/CLIP18_0000-0020_southern-dogface_on_sage.mp4 \
+  --out-dir _work/pol-1185/wfc-real
+```
+
+Optional comparators:
+
+```bash
+uv sync --extra dev --extra video-av --locked
+uv sync --extra dev --extra video-torchcodec --locked
+uv run --with decord --with numpy python dev/benchmarks/cosmos_video_decode_benchmark.py
+```
+
+Decision rule: synthetic smoke output proves the harness and backend availability,
+not default-backend readiness. Keep Decord as an external Linux comparator until
+a maintained backend passes representative WFC clips with preserved order,
+duplicate semantics, acceptable pixel deltas, and stable missing-backend errors.
+TorchCodec needs FFmpeg shared libraries visible to the dynamic loader; a static
+`ffmpeg` executable on `PATH` is not enough for that backend. PyNvVideoCodec/NVDEC
+is out of the default benchmark path until host runtime policy provides the NVIDIA
+encode libraries required by its wheel at import time.
+
+Primary artifacts:
+
+- `cosmos_video_decode_benchmark.v1.json`
+- `cosmos_video_decode_timings.csv`
+- `cosmos_video_decode_correctness.csv`
+- `cosmos_video_decode_summary.md`

@@ -1,6 +1,7 @@
 # Cosmos SDK (Python)
 
-Cosmos exposes a stable SDK for ingest, crop, preview, optimize, and provenance tasks.
+Cosmos exposes a stable SDK for video probe/decode, ingest, crop, preview, optimize, and
+provenance tasks.
 
 ## SDK entry points
 
@@ -12,10 +13,53 @@ from cosmos.sdk import (
     CropJob,
     optimize,
     OptimizeOptions,
+    probe_video,
+    extract_frames_at_indices,
+    extract_frames_at_times,
     DeterminismProfile,
     resolve_profile,
 )
 ```
+
+## Video probe/decode API
+
+```python
+from pathlib import Path
+from cosmos.sdk.video import probe_video, extract_frames_at_indices, extract_frames_at_times
+
+source = Path("clip.mp4")
+probe = probe_video(source)
+frames = extract_frames_at_indices(source, [0, 10])
+time_frames = extract_frames_at_times(source, [0.0, 2.5])
+```
+
+Video substrate behavior:
+
+- `probe_video()` returns typed metadata for the first video stream, including dimensions,
+  duration/fps/frame count when ffprobe reports them, codec names, and source path.
+- Frame extraction returns `RgbFrame` objects with source/request metadata and raw `rgb24`
+  bytes. Cosmos does not return NumPy arrays or PIL images from this public contract.
+- Sparse index extraction batches unique requested indices into one FFmpeg pass, then
+  returns frames in the caller's requested order, including duplicate indices.
+- For late or widely separated sparse index requests, Cosmos may use cached ffprobe packet
+  timestamps to seek into smaller FFmpeg decode windows. Dense requests still use the single
+  full-scan batch path when that is cheaper.
+- The default backend remains `ffmpeg-cli` for stable byte output through the system/shared
+  FFmpeg stack. Install `polli-cosmos[video-av]` and set
+  `COSMOS_VIDEO_BACKEND=pyav` to exercise the optional in-process PyAV backend. Install
+  `polli-cosmos[video-torchcodec]` and set `COSMOS_VIDEO_BACKEND=torchcodec` to exercise
+  the optional CPU TorchCodec backend. `COSMOS_VIDEO_BACKEND=auto` is still
+  platform-aware: it uses PyAV with FFmpeg CLI fallback on macOS and keeps FFmpeg CLI on
+  Linux.
+- PyAV uses the wheel's bundled libav stack; decoded RGB bytes may differ slightly from
+  system FFmpeg output even when decoded frame indices are preserved. Treat it as an
+  explicit performance backend until downstream tolerance and Linux benchmarks approve it.
+- TorchCodec returns PyTorch tensors internally, but Cosmos converts them back to the
+  public `RgbFrame.rgb24` byte contract. TorchCodec also needs compatible PyTorch,
+  TorchCodec, NumPy, and FFmpeg shared-library installs; a working `ffmpeg` executable by
+  itself is not enough when the shared libraries are unavailable to the dynamic loader.
+- Binary resolution follows the shared Cosmos ffmpeg/ffprobe policy (`COSMOS_FFMPEG`,
+  `COSMOS_FFPROBE`, managed binaries, then system PATH).
 
 ## Ingest API
 
@@ -187,6 +231,8 @@ See [Provenance](provenance.md) for join-key patterns and schema links.
 ## Error handling notes
 
 - Missing required input paths raise `ValueError` early.
+- Video probe/decode helpers raise `VideoProbeError` or `VideoDecodeError` with ffmpeg/ffprobe
+  stderr when tool execution fails.
 - Dry-runs avoid ffmpeg execution and return planned output paths.
 - For real runs, ffmpeg stderr/stdout is persisted in sidecar logs; CLI wrappers map
   failures to non-zero exits while SDK calls return successful outputs only.

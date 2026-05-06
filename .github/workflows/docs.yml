@@ -21,10 +21,8 @@ jobs:
         with:
           python-version: "3.12"
       - uses: astral-sh/setup-uv@v3
-      - name: Install docs extras
-        run: |
-          uv venv
-          uv pip install -e ".[docs]"
+      - name: Sync docs environment
+        run: uv sync --extra docs --locked
       - name: Build docs
         run: uv run mkdocs build --strict
       - name: Add SSH key

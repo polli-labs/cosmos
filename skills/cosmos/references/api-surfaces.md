@@ -4,6 +4,35 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 ## SDK surfaces
 
+### Video
+
+- `probe_video(path) -> VideoProbe`
+- `extract_frames_at_indices(path, indices, *, probe=None) -> list[RgbFrame]`
+- `extract_frames_at_times(path, times_seconds, *, probe=None) -> list[RgbFrame]`
+- `VideoProbe` exposes source path, dimensions, duration/fps/frame count when known,
+  codec names, and format name.
+- `RgbFrame` exposes source path, requested index/time, resolved index/time when known,
+  dimensions, and `rgb24` bytes.
+- The public contract intentionally returns raw RGB bytes and typed metadata, not NumPy or
+  PIL objects. Callers convert at their own boundary.
+- Sparse index extraction batches unique requested indices into one FFmpeg pass and remaps
+  outputs back to the caller's requested order, including duplicate indices.
+- Sparse index extraction may switch to seek-window FFmpeg calls for late or widely separated
+  requests, using sorted ffprobe packet PTS values to preserve exact frame-index semantics.
+- Default implementation is the `ffmpeg-cli` backend through the shared `cosmos.ffmpeg`
+  resolver policy. Optional `polli-cosmos[video-av]` installs PyAV/NumPy for explicit
+  `COSMOS_VIDEO_BACKEND=pyav` use, or `COSMOS_VIDEO_BACKEND=auto` for a platform-aware
+  choice. Auto mode uses PyAV with FFmpeg CLI fallback on macOS and keeps FFmpeg CLI on
+  Linux.
+- PyAV preserves the `RgbFrame` contract but may produce tiny RGB-byte differences from
+  system FFmpeg because the wheel bundles its own libav stack. Keep backend choice explicit
+  in benchmark-sensitive callers until downstream tolerance is approved.
+- Optional `polli-cosmos[video-torchcodec]` installs PyTorch/TorchCodec/NumPy for explicit
+  `COSMOS_VIDEO_BACKEND=torchcodec` CPU benchmarking. TorchCodec tensors are converted back
+  to `RgbFrame.rgb24`; do not expose tensors through this public surface.
+- Tensor-native decode APIs are deferred until a backend demonstrates a representative
+  WFC advantage that is lost when Cosmos materializes public `RgbFrame.rgb24` bytes.
+
 ### Ingest
 
 - `ingest(input_dir, output_dir, *, manifest, options) -> list[Path]`

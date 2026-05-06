@@ -6,7 +6,6 @@ import logging
 import json
 import os
 import platform
-import shutil
 import subprocess
 import sys
 import uuid
@@ -16,6 +15,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from pydantic import BaseModel, Field
+
+from cosmos.ffmpeg.detect import resolve_ffmpeg_path, resolve_ffprobe_path
 
 
 # -----------------------------
@@ -36,8 +37,9 @@ def sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
 
 
 def ffmpeg_version() -> dict[str, str]:
-    ff = shutil.which("ffmpeg") or "ffmpeg"
+    ff = "unresolved"
     try:
+        ff = resolve_ffmpeg_path()
         out = subprocess.run([ff, "-version"], capture_output=True, text=True, check=True)  # noqa: S603
         line0 = (out.stdout or "").splitlines()[0] if out.stdout else ""
         return {"version": line0.strip(), "path": ff}
@@ -46,8 +48,8 @@ def ffmpeg_version() -> dict[str, str]:
 
 
 def ffprobe_video(path: Path) -> dict[str, Any]:
-    ffprobe = shutil.which("ffprobe") or "ffprobe"
     try:
+        ffprobe = resolve_ffprobe_path()
         out = subprocess.run(  # noqa: S603
             [
                 ffprobe,

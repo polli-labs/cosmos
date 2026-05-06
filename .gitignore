@@ -3,6 +3,9 @@ dev/
 dev/*
 !dev/scripts/
 dev/scripts/*
+!dev/benchmarks/
+dev/benchmarks/*
+!dev/benchmarks/cosmos_video_decode_benchmark.py
 issues/
 data/
 scripts/
