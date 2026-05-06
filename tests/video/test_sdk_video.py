@@ -679,6 +679,24 @@ def test_probe_video_uses_cosmos_ffprobe_resolver(
     assert probe.frame_count == 2
 
 
+def test_probe_video_wraps_ffprobe_resolver_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import cosmos.video.probe as probe_mod
+
+    src = tmp_path / "tiny.mp4"
+    src.write_bytes(b"placeholder")
+
+    def _raise_resolver_error() -> str:
+        raise RuntimeError("resolver unavailable")
+
+    monkeypatch.setattr(probe_mod, "resolve_ffprobe_path", _raise_resolver_error)
+
+    with pytest.raises(VideoProbeError, match="ffprobe could not be resolved"):
+        probe_video(src)
+
+
 def test_extract_frames_uses_cosmos_ffmpeg_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -718,6 +736,35 @@ def test_extract_frames_uses_cosmos_ffmpeg_resolver(
             rgb24=b"\x00" * 12,
         )
     ]
+
+
+def test_extract_frames_wraps_ffmpeg_timeout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import cosmos.video.backends.ffmpeg_cli as ffmpeg_mod
+    import cosmos.video.decode as decode_mod
+
+    src = tmp_path / "tiny.mp4"
+    src.write_bytes(b"placeholder")
+
+    def _fake_run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        timeout = kwargs.get("timeout")
+        assert isinstance(timeout, int | float)
+        raise subprocess.TimeoutExpired(cmd, timeout)
+
+    monkeypatch.setenv("COSMOS_VIDEO_BACKEND", "ffmpeg-cli")
+    monkeypatch.setenv("COSMOS_VIDEO_FFMPEG_TIMEOUT", "1.5")
+    monkeypatch.setattr(ffmpeg_mod, "resolve_ffmpeg_path", lambda: "/custom/ffmpeg")
+    monkeypatch.setattr(
+        decode_mod,
+        "probe_video",
+        lambda _path: VideoProbe(source_path=src, width=2, height=2, frame_count=2, fps=1.0),
+    )
+    monkeypatch.setattr(ffmpeg_mod.subprocess, "run", _fake_run)
+
+    with pytest.raises(VideoDecodeError, match="ffmpeg timed out after 1.5s"):
+        extract_frames_at_indices(src, [0])
 
 
 def test_extract_frames_at_indices_batches_unique_sparse_indices(

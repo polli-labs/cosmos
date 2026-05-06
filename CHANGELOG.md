@@ -21,6 +21,8 @@ All notable changes to this project will be documented in this file.
   `COSMOS_VIDEO_BACKEND=torchcodec` CPU backend for benchmarking TorchCodec through the
   existing `RgbFrame.rgb24` byte contract.
 - Align provenance ffmpeg/ffprobe helper lookup with the shared Cosmos resolver policy.
+- Wrap video/provenance ffmpeg and ffprobe resolver failures in stable public errors, and
+  add opt-in `COSMOS_VIDEO_FFMPEG_TIMEOUT` bounds for video subprocess calls.
 - Promote the public release surface to the locked supply-chain posture from `cosmos-dev`:
   committed `uv.lock`, seven-day uv resolver cooldown, locked CI/docs/publish environments,
   locked release tooling, and bounded Hatchling build backend resolution.

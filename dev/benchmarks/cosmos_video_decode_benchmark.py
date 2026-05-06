@@ -30,6 +30,8 @@ ISSUE_ID = "POL-1185"
 SCHEMA_VERSION = "cosmos-video-decode-benchmark-v1"
 VIDEO_EXTENSIONS = {".avi", ".mkv", ".mov", ".mp4", ".mts", ".ts", ".webm"}
 CORE_BACKENDS = {"cosmos_ffmpeg_cli", "cosmos_auto", "cosmos_default"}
+SYNTHETIC_VIDEO_TIMEOUT_SECONDS = 120
+COMMAND_CHECK_TIMEOUT_SECONDS = 10
 
 
 @dataclass(frozen=True, slots=True)
@@ -398,7 +400,18 @@ def _generate_synthetic_clip(
         "yuv420p",
         str(path),
     ]
-    subprocess.run(cmd, check=True, capture_output=True)  # noqa: S603
+    try:
+        subprocess.run(  # noqa: S603
+            cmd,
+            check=True,
+            capture_output=True,
+            timeout=SYNTHETIC_VIDEO_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "Timed out generating synthetic benchmark video "
+            f"after {SYNTHETIC_VIDEO_TIMEOUT_SECONDS}s: {cmd}"
+        ) from exc
 
 
 def _backend_specs() -> list[BackendSpec]:
@@ -477,7 +490,12 @@ def _backend_availability(backends: Sequence[BackendSpec]) -> dict[str, Availabi
 def _command_available(resolver: Callable[[], str]) -> tuple[bool, str | None]:
     try:
         executable = resolver()
-        subprocess.run([executable, "-version"], check=True, capture_output=True)  # noqa: S603
+        subprocess.run(  # noqa: S603
+            [executable, "-version"],
+            check=True,
+            capture_output=True,
+            timeout=COMMAND_CHECK_TIMEOUT_SECONDS,
+        )
     except Exception as exc:  # pragma: no cover - host-specific error text
         return False, str(exc)
     return True, None
@@ -1042,6 +1060,7 @@ def _run_text(cmd: Sequence[str], *, first_line: bool = False) -> str | None:
             check=True,
             capture_output=True,
             text=True,
+            timeout=COMMAND_CHECK_TIMEOUT_SECONDS,
         )
     except Exception:
         return None

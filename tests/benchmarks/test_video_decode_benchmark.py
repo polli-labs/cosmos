@@ -9,7 +9,8 @@ from typing import Any
 
 
 def _load_benchmark_module() -> ModuleType:
-    path = Path("dev/benchmarks/cosmos_video_decode_benchmark.py").resolve()
+    repo_root = Path(__file__).resolve().parents[2]
+    path = (repo_root / "dev/benchmarks/cosmos_video_decode_benchmark.py").resolve()
     spec = importlib.util.spec_from_file_location("cosmos_video_decode_benchmark", path)
     assert spec is not None
     assert spec.loader is not None

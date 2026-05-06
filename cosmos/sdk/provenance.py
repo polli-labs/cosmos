@@ -37,8 +37,9 @@ def sha256_file(path: Path, *, chunk_size: int = 1024 * 1024) -> str:
 
 
 def ffmpeg_version() -> dict[str, str]:
-    ff = resolve_ffmpeg_path()
+    ff = "unresolved"
     try:
+        ff = resolve_ffmpeg_path()
         out = subprocess.run([ff, "-version"], capture_output=True, text=True, check=True)  # noqa: S603
         line0 = (out.stdout or "").splitlines()[0] if out.stdout else ""
         return {"version": line0.strip(), "path": ff}
@@ -47,8 +48,8 @@ def ffmpeg_version() -> dict[str, str]:
 
 
 def ffprobe_video(path: Path) -> dict[str, Any]:
-    ffprobe = resolve_ffprobe_path()
     try:
+        ffprobe = resolve_ffprobe_path()
         out = subprocess.run(  # noqa: S603
             [
                 ffprobe,

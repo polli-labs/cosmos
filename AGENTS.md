@@ -106,15 +106,15 @@ Before tagging any release, these are required:
 1. **Docs audit**
   - Update affected docs pages and examples for new/changed surfaces.
   - Run `uv run mkdocs build --strict`.
-2. **Skill audit**
+1. **Skill audit**
   - Update `skills/cosmos/SKILL.md` and relevant `skills/cosmos/references/*`.
   - Follow `skills/cosmos/references/maintenance-ritual.md`.
-3. **Instruction audit**
+1. **Instruction audit**
   - Refresh this file and `docs/migration/dev_public_release_contract.md`
     whenever repo-local remotes, clone paths, or standing overrides change.
-4. **Code quality gate**
+1. **Code quality gate**
   - `make check`.
-5. **Receipts**
+1. **Receipts**
   - Leave explicit receipts in Linear release/tracker issues (commands, PRs, runs, tags, release URL/assets).
 
 Treat docs + skill + AGENTS/CLAUDE freshness as release-quality requirements, not optional polish.

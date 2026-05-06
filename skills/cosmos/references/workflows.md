@@ -130,7 +130,7 @@ Use this when comparing `cosmos.sdk.video` backends or checking whether Decord
 can be removed from a downstream Linux path:
 
 ```bash
-cd /home/caleb/dev/cosmos/dev
+cd /home/caleb/repo/cosmos
 uv run python dev/benchmarks/cosmos_video_decode_benchmark.py \
   --out-dir _work/pol-1185/synthetic-smoke
 ```

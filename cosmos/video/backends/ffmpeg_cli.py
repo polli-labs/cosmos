@@ -9,7 +9,11 @@ from functools import lru_cache
 from pathlib import Path
 
 from cosmos.ffmpeg.detect import resolve_ffmpeg_path, resolve_ffprobe_path
-from cosmos.video._helpers import _clean_stderr
+from cosmos.video._helpers import (
+    _clean_stderr,
+    _format_timeout,
+    _video_subprocess_timeout_seconds,
+)
 from cosmos.video.types import VideoDecodeError, VideoProbe
 
 _MAX_SELECT_EXPRESSION_CHARS = 16_000
@@ -338,40 +342,10 @@ def _packet_timestamps_for_source_cached(
 ) -> tuple[float, ...]:
     del source_size, source_mtime_ns
     source_path = Path(source_path_raw)
-    ffprobe = resolve_ffprobe_path()
-    cmd = [
-        ffprobe,
-        "-v",
-        "error",
-        "-select_streams",
-        "v:0",
-        "-show_entries",
-        "packet=pts_time",
-        "-of",
-        "json",
-        str(source_path),
-    ]
-    try:
-        completed = subprocess.run(  # noqa: S603
-            cmd,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-    except FileNotFoundError as exc:
-        raise VideoDecodeError(
-            f"ffprobe could not be launched at {ffprobe!r}. "
-            "Install ffprobe or set COSMOS_FFPROBE to a valid executable."
-        ) from exc
-    except subprocess.CalledProcessError as exc:
-        stderr = _clean_stderr(exc.stderr)
-        raise VideoDecodeError(
-            f"ffprobe failed while reading packet timestamps from {source_path} "
-            f"with exit code {exc.returncode}: {stderr}"
-        ) from exc
+    stdout = _run_ffprobe_packet_timestamps(source_path)
 
     try:
-        payload = json.loads(completed.stdout or "{}")
+        payload = json.loads(stdout or "{}")
     except json.JSONDecodeError as exc:
         raise VideoDecodeError(
             f"ffprobe returned invalid packet timestamp JSON for {source_path}: {exc}"
@@ -400,6 +374,54 @@ def _packet_timestamps_for_source_cached(
     return tuple(sorted(timestamps))
 
 
+def _run_ffprobe_packet_timestamps(source_path: Path) -> str:
+    timeout = _video_subprocess_timeout_seconds()
+    ffprobe = "ffprobe"
+    try:
+        ffprobe = resolve_ffprobe_path()
+        cmd = [
+            ffprobe,
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_entries",
+            "packet=pts_time",
+            "-of",
+            "json",
+            str(source_path),
+        ]
+        completed = subprocess.run(  # noqa: S603
+            cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise VideoDecodeError(
+            f"ffprobe timed out after {_format_timeout(timeout)} while reading packet "
+            f"timestamps from {source_path}."
+        ) from exc
+    except FileNotFoundError as exc:
+        raise VideoDecodeError(
+            f"ffprobe could not be launched at {ffprobe!r}. "
+            "Install ffprobe or set COSMOS_FFPROBE to a valid executable."
+        ) from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = _clean_stderr(exc.stderr)
+        raise VideoDecodeError(
+            f"ffprobe failed while reading packet timestamps from {source_path} "
+            f"with exit code {exc.returncode}: {stderr}"
+        ) from exc
+    except Exception as exc:
+        raise VideoDecodeError(
+            f"ffprobe could not be resolved while reading packet timestamps "
+            f"from {source_path}: {exc}"
+        ) from exc
+    return completed.stdout if isinstance(completed.stdout, str) else ""
+
+
 def _run_ffmpeg_rawvideo(
     cmd: list[str],
     *,
@@ -407,8 +429,19 @@ def _run_ffmpeg_rawvideo(
     request: str,
     expected_bytes: int,
 ) -> bytes:
+    timeout = _video_subprocess_timeout_seconds()
     try:
-        completed = subprocess.run(cmd, check=True, capture_output=True)  # noqa: S603
+        completed = subprocess.run(  # noqa: S603
+            cmd,
+            check=True,
+            capture_output=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise VideoDecodeError(
+            f"ffmpeg timed out after {_format_timeout(timeout)} while extracting "
+            f"{request} from {source_path}."
+        ) from exc
     except FileNotFoundError as exc:
         ffmpeg = cmd[0] if cmd else "ffmpeg"
         raise VideoDecodeError(
