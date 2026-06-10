@@ -16,17 +16,20 @@ jobs:
     name: Build & Deploy Docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          version: "0.11.20"
+          enable-cache: false
       - name: Sync docs environment
         run: uv sync --extra docs --locked
       - name: Build docs
         run: uv run mkdocs build --strict
       - name: Add SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+        uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
         with:
           ssh-private-key: ${{ secrets.POLLISERVE0_SSH_PRIVATE_KEY }}
       - name: Check SSH connectivity
@@ -41,7 +44,7 @@ jobs:
             site/ ${{ secrets.POLLISERVE0_SSH_USER }}@${{ secrets.POLLISERVE0_SSH_PUBLIC_HOST }}:/var/www/docs.polli.ai/html/cosmos/
       - name: Upload built site as artifact on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site
           path: site/
