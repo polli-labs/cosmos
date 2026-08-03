@@ -1,21 +1,23 @@
 # cosmos CLI Reference
 
-`cosmos` is the primary CLI for ingest, crop, optimize, preview, and provenance helpers.
+`cosmos` is the CLI for ingest, crop, optimize, preview, provenance lookup,
+and lineage queries.
 
 ## Command map
 
-- `cosmos ingest run`: process camera inputs into MP4 clips
-- `cosmos crop run`: crop existing MP4s (square and rect modes)
-- `cosmos crop preview`: generate contact-sheet and stacked-overlay previews
+- `cosmos process`: run ingest plus optional crop from one root command
+- `cosmos ingest run`: normalize source layouts into MP4 clips
+- `cosmos crop run`: crop existing MP4s in square or rect mode
+- `cosmos crop preview`: write contact-sheet and stacked-overlay QA previews
 - `cosmos crop curated-views`: execute curated-view specs
 - `cosmos crop curated-views-preview`: preview curated-view specs
-- `cosmos optimize run`: remux/transcode MP4s for web delivery
-- `cosmos provenance ...`: lookup/hash helpers for produced artifacts
-- `cosmos lineage ...`: lineage graph queries (upstream, downstream, chain, tree)
+- `cosmos optimize run`: remux or transcode MP4s for web delivery
+- `cosmos provenance ...`: hash and lookup produced artifacts
+- `cosmos lineage ...`: query provenance graph ancestry and descendants
 
-Legacy alias:
+Retired alias:
 
-- `cosmos process` remains available for compatibility workflows.
+- `cosmos pipeline` has been retired. Use `cosmos process`.
 
 ## Global behavior contracts
 
@@ -25,9 +27,29 @@ Legacy alias:
   - `--plain`: line-oriented payload to stdout
 - Diagnostics and warnings are emitted to stderr.
 - `--yes` suppresses interactive prompts for non-TTY automation.
-- `--dry-run` generates plans/commands without running ffmpeg.
+- `--dry-run` avoids applying the planned media transform or creating media
+  outputs, while still allowing bounded local preflight/probing.
+  Media-execution commands expose typed output declarations and dry-run plan
+  artifacts; use
+  [Agent-Native Dry-Run Contract](dry-run-contract.md).
 
-## Ingest quick references
+## Root workflow
+
+`cosmos process` is the canonical visible root workflow for ingesting a source
+directory and optionally running crop jobs afterward.
+
+```bash
+cosmos process --help
+cosmos process /path/raw ./out --plain
+cosmos process /path/raw ./out --post-process --crop-config jobs.json --plain
+cosmos process /path/raw ./out --dry-run --json
+```
+
+`cosmos process` supports `--yes/--no-input`, `--skip-ffmpeg-check`,
+`--json|--plain`, and dry-run planning. Use the child commands directly when
+you need command-specific flags beyond the root workflow.
+
+## Ingest
 
 ```bash
 cosmos ingest run --help
@@ -39,14 +61,24 @@ cosmos ingest run --input-dir /path/in --output-dir /path/out --dry-run --yes
 Manifest behavior:
 
 - If `--manifest` is omitted, Cosmos searches `input_dir` for a single `*.xml` manifest.
-- If no manifest is found, ingest can fall back to discovered `.mp4` files for convenience.
+- If no manifest is found, ingest can use the `generic-media` adapter for
+  discovered video files.
 
-## Crop quick references
+Artifacts:
+
+- `{clip}.mp4`
+- `{clip}.mp4.cmd.txt`
+- `{clip}.mp4.log.txt`
+- `cosmos_ingest_dry_run.v1.json` when `--dry-run` is used. JSON stdout exposes
+  it as `dry_run_plan`.
+
+## Crop
 
 ```bash
 cosmos crop run --help
 cosmos crop run --input clip.mp4 --out-dir ./out --size 1080 --offset-x 0.1 --offset-y 0 --yes
 cosmos crop run --input clip.mp4 --out-dir ./out --jobs-file jobs.json --yes
+cosmos crop run --input clip.mp4 --out-dir ./out --crop-mode rect --x0 0.1 --y0 0.1 --width 0.5 --height 0.5 --yes
 ```
 
 Preview commands:
@@ -56,7 +88,16 @@ cosmos crop preview --input clip.mp4 --jobs-file jobs.json --out ./preview --fra
 cosmos crop curated-views-preview --spec curated_views.json --source-root /data --out ./preview --frame start --frame end --yes
 ```
 
-## Optimize quick references
+Artifacts:
+
+- Crop run: `cosmos_crop_run.v1.json` plus per-output
+  `*.mp4.cosmos_view.v1.json` sidecars on real runs.
+- Preview: `cosmos_crop_preview_run.v1.json` plus per-clip
+  `preview_plan.v1.json` and image bundles.
+- Dry-run crop execution writes `cosmos_crop_dry_run.json`, exposes it as
+  `dry_run_plan`, and declares outputs without creating placeholder MP4 files.
+
+## Optimize
 
 `cosmos optimize run` is the canonical web-readiness path for existing MP4 outputs.
 
@@ -84,6 +125,8 @@ Optimize artifacts:
 
 - Run-level: `cosmos_optimize_run.v1.json`
 - Per-output: `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
+- Dry-run plan: `cosmos_optimize_dry_run.json`, exposed as `dry_run_plan` in
+  `--json` output and populated with argv-array `command` entries.
 
 Encoder resilience:
 

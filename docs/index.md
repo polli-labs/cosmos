@@ -1,26 +1,28 @@
 # Cosmos Documentation
 
-Cosmos is a provenance-first video normalization toolkit.
+Cosmos is a provenance-first video normalization toolkit for producing
+traceable MP4 derivatives.
 
 It is designed to be safe for both humans and automation:
 
 - one CLI (`cosmos`)
 - one SDK (`cosmos.sdk.*`)
-- deterministic provenance artifacts for every real output
+- run-level and artifact-level provenance for real outputs
 
 ## What Cosmos is (and is not)
 
-Cosmos is currently strongest in two areas:
+Cosmos is currently strongest in three areas:
 
-- COSM-native ingest: manifest-aware conversion from camera export layouts to normalized MP4 clips.
-- General MP4 post-processing: crop, preview, optimize, and provenance operations that work on standard MP4 inputs.
-- Typed video substrate access: ffprobe-backed metadata and RGB frame extraction for SDK consumers.
+- COSM-native ingest: manifest-aware conversion from camera exports to MP4 clips.
+- General MP4 post-processing: crop, preview, optimize, provenance, and lineage operations for standard MP4 inputs.
+- Typed video substrate access: ffprobe-backed metadata, exact decoded-frame PTS timelines, and
+  RGB frame extraction for SDK consumers.
 
 Cosmos is not limited to a single camera vendor at the architecture level. The long-term model is:
 
 - many ingest adapters
-- one normalized runtime contract
-- one typed video probe/decode substrate
+- one normalized MP4 contract
+- one typed video probe/timeline/decode substrate
 - one provenance model
 
 ## Start with the workflow you need
@@ -49,6 +51,7 @@ optional transcode transforms, and reproducible optimize provenance.
 
 ```bash
 cosmos --help
+cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
 cosmos optimize run --help
@@ -58,8 +61,9 @@ cosmos provenance --help
 
 ## Provenance is a first-class contract
 
-Cosmos writes run-level and artifact-level JSON sidecars so downstream systems can audit
-exactly how each file was produced.
+Cosmos writes run-level and artifact-level JSON sidecars for real outputs. If a
+required artifact sidecar cannot be written, the real run fails instead of
+silently producing an unreceipted output.
 
 - Overview and join keys: [Provenance](provenance.md)
 - Schemas: see the [Reference](#reference-map) section below

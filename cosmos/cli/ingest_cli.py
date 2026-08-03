@@ -13,6 +13,7 @@ from cosmos.cli.io import (
     raise_mapped_exit,
     resolve_output_mode,
 )
+from cosmos.sdk.dry_run import output_declaration
 from cosmos.sdk.ingest import IngestOptions, ingest
 
 app = typer.Typer(help="Video ingest (auto-detects source layout, default: COSM)")
@@ -111,15 +112,19 @@ def run(
         return
 
     if output_mode == "json":
-        emit_payload(
-            {
-                "command": "cosmos ingest run",
-                "dry_run": dry_run,
-                "count": len(results),
-                "outputs": [str(p) for p in results],
-            },
-            mode=output_mode,
-        )
+        payload: dict[str, object] = {
+            "command": "cosmos ingest run",
+            "dry_run": dry_run,
+            "count": len(results),
+            "outputs": [str(p) for p in results],
+        }
+        if dry_run:
+            payload["run_artifact"] = str(output_dir / "cosmos_ingest_run.v1.json")
+            payload["dry_run_plan"] = str(output_dir / "cosmos_ingest_dry_run.v1.json")
+            payload["output_declarations"] = [
+                output_declaration(p, kind="video", stage="ingest") for p in results
+            ]
+        emit_payload(payload, mode=output_mode)
         return
 
     emit_paths(results, mode=output_mode)

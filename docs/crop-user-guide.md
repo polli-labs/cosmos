@@ -14,9 +14,9 @@ Interactive mode is also available:
 cosmos crop run
 ```
 
-## Jobs file workflow (recommended)
+## Jobs file workflow
 
-Use a JSON jobs file when you need multiple target sizes or repeatable crop specs.
+Use a JSON jobs file for repeatable crop specs or multiple target sizes.
 
 Example `job_settings.json`:
 
@@ -55,7 +55,14 @@ Additional fields:
 cosmos crop run --input clip.mp4 --out-dir ./crops --dry-run --yes
 ```
 
-`--dry-run` generates plans/commands without encoding.
+`--dry-run` validates inputs/jobs and declares crop output paths without encoding.
+It writes `cosmos_crop_dry_run.json`, exposes that path as `dry_run_plan` in
+`--json` output, and does not create placeholder MP4 files; see
+[Agent-Native Dry-Run Contract](dry-run-contract.md).
+
+Real runs write `cosmos_crop_run.v1.json` and per-output
+`*.mp4.cosmos_view.v1.json` sidecars. Required artifact sidecar write failures
+fail the run.
 
 ## Encoder notes
 

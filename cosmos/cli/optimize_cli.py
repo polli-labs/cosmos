@@ -14,6 +14,7 @@ from cosmos.cli.io import (
     raise_mapped_exit,
     resolve_output_mode,
 )
+from cosmos.sdk.dry_run import output_declaration
 from cosmos.sdk.optimize import OptimizeMode, OptimizeOptions, optimize
 
 app = typer.Typer(help="Web-ready MP4 optimization (faststart/remux/transcode)")
@@ -207,6 +208,9 @@ def run(
         }
         if dry_run:
             payload["dry_run_plan"] = str(dry_run_plan)
+            payload["output_declarations"] = [
+                output_declaration(p, kind="video", stage="optimize") for p in results
+            ]
         else:
             payload["artifacts"] = [
                 str(p.with_suffix(p.suffix + ".cosmos_optimized.v1.json")) for p in results

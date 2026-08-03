@@ -20,25 +20,28 @@ def probe_video(path: Path | str) -> VideoProbe:
 
     source_path = _coerce_source_path(path, error_cls=VideoProbeError)
     timeout = _video_subprocess_timeout_seconds()
-    ffprobe = "ffprobe"
     try:
         ffprobe = resolve_ffprobe_path()
-        cmd = [
-            ffprobe,
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            (
-                "stream=width,height,codec_name,codec_long_name,"
-                "avg_frame_rate,r_frame_rate,duration,nb_frames"
-                ":format=duration,format_name"
-            ),
-            "-of",
-            "json",
-            str(source_path),
-        ]
+    except Exception as exc:
+        raise VideoProbeError(f"ffprobe could not be resolved for {source_path}: {exc}") from exc
+
+    cmd = [
+        ffprobe,
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        (
+            "stream=width,height,codec_name,codec_long_name,"
+            "avg_frame_rate,r_frame_rate,duration,nb_frames"
+            ":format=duration,format_name"
+        ),
+        "-of",
+        "json",
+        str(source_path),
+    ]
+    try:
         completed = subprocess.run(  # noqa: S603
             cmd,
             check=True,
@@ -50,7 +53,7 @@ def probe_video(path: Path | str) -> VideoProbe:
         raise VideoProbeError(
             f"ffprobe timed out after {_format_timeout(timeout)} while probing {source_path}."
         ) from exc
-    except FileNotFoundError as exc:
+    except OSError as exc:
         raise VideoProbeError(
             f"ffprobe could not be launched at {ffprobe!r}. "
             "Install ffprobe or set COSMOS_FFPROBE to a valid executable."
@@ -60,9 +63,6 @@ def probe_video(path: Path | str) -> VideoProbe:
         raise VideoProbeError(
             f"ffprobe failed for {source_path} with exit code {exc.returncode}: {stderr}"
         ) from exc
-    except Exception as exc:
-        raise VideoProbeError(f"ffprobe could not be resolved for {source_path}: {exc}") from exc
-
     try:
         payload = json.loads(completed.stdout or "{}")
     except json.JSONDecodeError as exc:

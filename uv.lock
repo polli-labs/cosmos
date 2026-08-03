@@ -9,8 +9,11 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-07-27T19:59:42.223985Z"
 exclude-newer-span = "P7D"
+
+[options.exclude-newer-package]
+polli-typus = "2026-08-03T18:12:21Z"
 
 [[package]]
 name = "annotated-doc"
@@ -1286,10 +1289,11 @@ wheels = [
 
 [[package]]
 name = "polli-cosmos"
-version = "0.8.0"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "pillow" },
+    { name = "polli-typus" },
     { name = "psutil" },
     { name = "pydantic" },
     { name = "questionary" },
@@ -1342,6 +1346,7 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'video-av'", specifier = ">=1.26,<3" },
     { name = "numpy", marker = "extra == 'video-torchcodec'", specifier = ">=1.26,<3" },
     { name = "pillow", specifier = ">=10.4.0" },
+    { name = "polli-typus", specifier = ">=0.8,<0.9" },
     { name = "psutil", specifier = ">=6.1.0" },
     { name = "pydantic", specifier = ">=2.7,<3" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
@@ -1357,6 +1362,18 @@ requires-dist = [
     { name = "types-pyyaml", marker = "extra == 'dev'" },
 ]
 provides-extras = ["dev", "docs", "release", "video-av", "video-torchcodec"]
+
+[[package]]
+name = "polli-typus"
+version = "0.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e7/44/ee5b793217f6ce0c7eba4d8b20cfe7bbdad731889bd1fc4352b666869398/polli_typus-0.8.0.tar.gz", hash = "sha256:207eaba6274644cd6f7ea09aa5b5d2aa45d435ac213c4fa85bbe8a5a5d0595e3", size = 75406, upload-time = "2026-08-03T18:12:20.71Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/d4/aee1c359b11f5df292d5328214873ea2eb8a75a477004755234c8857ae46/polli_typus-0.8.0-py3-none-any.whl", hash = "sha256:f723eb14e759db4c393b2657733d7ee283af43a37aa783dd3df825d5918c07a2", size = 93938, upload-time = "2026-08-03T18:12:19.7Z" },
+]
 
 [[package]]
 name = "prompt-toolkit"

@@ -42,6 +42,25 @@ def test_run_square_crop_builds_args(tmp_path: Path):
         assert isinstance(result, CropRunResult)
 
 
+def test_run_square_crop_dry_run_rejects_missing_input(tmp_path: Path) -> None:
+    inp = tmp_path / "missing.mp4"
+    out = tmp_path / "out.mp4"
+    spec = SquareCropSpec(size=512, center_x=0.5, center_y=0.5)
+    with pytest.raises(FileNotFoundError, match="Input video does not exist"):
+        run_square_crop(inp, out, spec, dry_run=True)
+    assert not out.exists()
+
+
+def test_run_square_crop_rejects_non_positive_size(tmp_path: Path) -> None:
+    inp = tmp_path / "in.mp4"
+    inp.write_bytes(b"video")
+    out = tmp_path / "out.mp4"
+    spec = SquareCropSpec(size=0, center_x=0.5, center_y=0.5)
+    with pytest.raises(ValueError, match="size must be > 0"):
+        run_square_crop(inp, out, spec, dry_run=True)
+    assert not out.exists()
+
+
 def test_build_crop_filter_offsets():
     spec = SquareCropSpec(size=640, offset_x=0.5, offset_y=-0.25)
     flt = build_crop_filter(spec)

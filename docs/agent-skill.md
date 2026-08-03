@@ -36,6 +36,15 @@ contracts, and maintenance rules so feature work stays aligned across:
 4. Keep CLI output contracts safe for automation (`--json`, `--plain`, `--yes`, `--dry-run`).
 5. Treat skill freshness as a release-quality requirement, not optional docs polish.
 
+## Agent-native dry-runs
+
+Use [Agent-Native Dry-Run Contract](dry-run-contract.md) as the canonical docs
+target before changing dry-run behavior. Media-execution commands expose
+`dry_run_plan`, typed `output_declarations`, and v1 plan artifacts with
+argv-array `commands`. Dry-run does not apply the planned media transform or
+create media outputs; bounded local ffmpeg/ffprobe preflight/probing may still
+run when planning depends on it.
+
 ## Release checklist linkage
 
 When CLI/SDK/provenance behavior changes, update both docs and skill references in the same lane:

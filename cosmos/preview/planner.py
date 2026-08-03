@@ -1,11 +1,20 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, TypeGuard, cast
 
 from cosmos.crop.rectcrop import RectCropSpec, build_rect_crop_filter
 from cosmos.preview.contracts import PreviewRect, ResolvedFrame, ViewPreview
 from cosmos.preview.selectors import parse_frame_selector, resolve_frame_selector
-from cosmos.sdk.crop import CropJob, RectCropJob
+
+if TYPE_CHECKING:
+    from cosmos.sdk.crop import CropJob, RectCropJob
+
+
+def _is_rect_crop_job(job: CropJob | RectCropJob) -> TypeGuard[RectCropJob]:
+    """Check the concrete SDK job type without creating a package import cycle."""
+    from cosmos.sdk.crop import RectCropJob
+
+    return isinstance(job, RectCropJob)
 
 
 def _safe_norm(num: int, den: int) -> float:
@@ -174,7 +183,7 @@ def _resolve_view_frames(
 
 
 def _view_id_for_job(job: CropJob | RectCropJob, *, index: int) -> str:
-    if isinstance(job, RectCropJob):
+    if _is_rect_crop_job(job):
         return job.view_id or f"view_{index:03d}"
     return f"square_{index:03d}"
 
@@ -191,7 +200,7 @@ def build_view_preview(
     trim_start = job.start
     trim_end = job.end
 
-    if isinstance(job, RectCropJob):
+    if _is_rect_crop_job(job):
         crop_mode = "rect"
         crop_px, geometry_warnings = compute_rect_geometry(
             job, source_w=source_w, source_h=source_h
@@ -207,18 +216,19 @@ def build_view_preview(
         }
         annotations = job.annotations if job.annotations else None
     else:
+        square_job = cast("CropJob", job)
         crop_mode = "square"
         crop_px, geometry_warnings = compute_square_geometry(
-            job, source_w=source_w, source_h=source_h
+            square_job, source_w=source_w, source_h=source_h
         )
         crop_input = {
-            "size": job.size,
-            "offset_x": job.offset_x,
-            "offset_y": job.offset_y,
-            "center_x": job.center_x,
-            "center_y": job.center_y,
-            "trim_start_sec": job.start,
-            "trim_end_sec": job.end,
+            "size": square_job.size,
+            "offset_x": square_job.offset_x,
+            "offset_y": square_job.offset_y,
+            "center_x": square_job.center_x,
+            "center_y": square_job.center_y,
+            "trim_start_sec": square_job.start,
+            "trim_end_sec": square_job.end,
         }
         annotations = None
 

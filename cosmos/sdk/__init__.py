@@ -5,10 +5,12 @@ from .preview import PreviewRunResult, RenderOptions, preview, preview_curated_v
 from .profiles import DeterminismProfile, resolve_profile
 from .video import (
     RgbFrame,
+    VideoFrameTimeline,
     VideoProbe,
     extract_frames_at_indices,
     extract_frames_at_times,
     probe_video,
+    probe_video_timeline,
 )
 
 __all__ = [
@@ -26,7 +28,9 @@ __all__ = [
     "resolve_profile",
     "VideoProbe",
     "RgbFrame",
+    "VideoFrameTimeline",
     "probe_video",
+    "probe_video_timeline",
     "extract_frames_at_indices",
     "extract_frames_at_times",
 ]

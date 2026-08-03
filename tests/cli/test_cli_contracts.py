@@ -7,7 +7,8 @@ from pathlib import Path
 
 from cosmos.cli.cosmos_app import app
 from cosmos.preview.pipeline import PreviewRunResult
-from cosmos.sdk.ingest import IngestOptions
+from cosmos.sdk.crop import RectCropJob
+from cosmos.sdk.ingest import IngestOptions, IngestSystemPreflightError
 from typer.testing import CliRunner
 
 optimize_mod = importlib.import_module("cosmos.sdk.optimize")
@@ -68,6 +69,9 @@ def test_ingest_json_output_contract(monkeypatch, tmp_path: Path) -> None:
     assert payload["command"] == "cosmos ingest run"
     assert payload["count"] == 1
     assert payload["outputs"] == [str(output_dir / "clip_a.mp4")]
+    assert payload["run_artifact"] == str(output_dir / "cosmos_ingest_run.v1.json")
+    assert payload["dry_run_plan"] == str(output_dir / "cosmos_ingest_dry_run.v1.json")
+    assert payload["output_declarations"][0]["stage"] == "ingest"
     assert "error:" not in result.output.lower()
 
 
@@ -101,6 +105,79 @@ def test_ingest_runtime_maps_to_ffmpeg_error_exit_code(monkeypatch, tmp_path: Pa
     )
     assert result.exit_code == 4
     assert "ffmpeg not found" in result.output
+
+
+def test_ingest_invalid_option_maps_to_input_validation_exit_code(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            "run",
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            str(output_dir),
+            "--yes",
+            "--decode",
+            "gpu",
+        ],
+    )
+    assert result.exit_code == 3
+    assert "decode='gpu'" in result.output
+    assert "Accepted values: auto, hw, sw" in result.output
+
+
+def test_ingest_system_preflight_maps_to_ffmpeg_precheck_exit_code(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+
+    def _raise_preflight(*_args, **_kwargs):
+        raise IngestSystemPreflightError(
+            "Ingest adapter 'cosm' system preflight failed:\n"
+            "- error: Cannot write to output directory: /locked"
+        )
+
+    monkeypatch.setattr("cosmos.cli.ingest_cli.ingest", _raise_preflight)
+
+    result = runner.invoke(
+        app,
+        [
+            "ingest",
+            "run",
+            "--input-dir",
+            str(input_dir),
+            "--output-dir",
+            str(output_dir),
+            "--yes",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 4
+    assert "system preflight failed" in result.output
+    assert "Cannot write to output directory" in result.output
 
 
 def test_optimize_json_output_contract(monkeypatch, tmp_path: Path) -> None:
@@ -139,6 +216,7 @@ def test_optimize_json_output_contract(monkeypatch, tmp_path: Path) -> None:
     assert payload["outputs"] == [str(out_dir / "clip_optimized.mp4")]
     assert payload["run_artifact"] == str(out_dir / "cosmos_optimize_run.v1.json")
     assert payload["dry_run_plan"] == str(out_dir / "cosmos_optimize_dry_run.json")
+    assert payload["output_declarations"][0]["stage"] == "optimize"
 
 
 def test_optimize_remux_rejects_transform_flags(tmp_path: Path) -> None:
@@ -240,6 +318,95 @@ def test_optimize_skip_ffmpeg_check_only_suppresses_bootstrap_prompt(
     assert prompt_calls == [{"interactive": False}]
 
 
+def test_process_post_process_dry_run_plans_without_materialized_ingest(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+    planned_ingest = output_dir / "clip.mp4"
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "cosmos.cli.cosmos_app.sdk_ingest",
+        lambda *_args, **_kwargs: [planned_ingest],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "process",
+            str(input_dir),
+            str(output_dir),
+            "--post-process",
+            "--dry-run",
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["command"] == "cosmos process"
+    assert payload["dry_run"] is True
+    assert payload["count"] == 1
+    assert payload["ingest_outputs"] == [str(planned_ingest)]
+    assert payload["crop_count"] == 1
+    crop_output = Path(payload["outputs"][0])
+    assert crop_output.name == "crop_000_job00_t00_s1080.mp4"
+    assert not crop_output.exists()
+    assert payload["dry_run_plan"] == str(output_dir / "cosmos_process_dry_run.v1.json")
+
+    plan = json.loads((output_dir / "cosmos_process_dry_run.v1.json").read_text())
+    assert plan["schema"] == "cosmos-dry-run-plan-v1"
+    assert plan["outputs"][0]["stage"] == "crop"
+    assert plan["commands"][0]["stage"] == "crop"
+
+
+def test_process_post_process_dry_run_validates_crop_config(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    input_dir = tmp_path / "in"
+    output_dir = tmp_path / "out"
+    input_dir.mkdir()
+    output_dir.mkdir()
+    crop_config = tmp_path / "bad-crop.json"
+    crop_config.write_text(json.dumps({"size": 1080, "trim_start": 5, "trim_end": 1}))
+
+    monkeypatch.setattr(
+        "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
+        lambda **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        "cosmos.cli.cosmos_app.sdk_ingest",
+        lambda *_args, **_kwargs: [output_dir / "clip.mp4"],
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "process",
+            str(input_dir),
+            str(output_dir),
+            "--post-process",
+            "--crop-config",
+            str(crop_config),
+            "--dry-run",
+            "--yes",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 3
+    assert "trim_end must be greater than trim_start" in result.output
+
+
 def test_crop_run_non_interactive_requires_out_dir(tmp_path: Path) -> None:
     video = tmp_path / "in.mp4"
     video.write_bytes(b"fake")
@@ -256,6 +423,30 @@ def test_crop_run_non_interactive_requires_out_dir(tmp_path: Path) -> None:
     )
     assert result.exit_code == 2
     assert "Output directory is required" in result.stderr
+
+
+def test_crop_run_rejects_non_positive_size_flag(tmp_path: Path) -> None:
+    video = tmp_path / "in.mp4"
+    video.write_bytes(b"fake")
+    out_dir = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        [
+            "crop",
+            "run",
+            "--input",
+            str(video),
+            "--out-dir",
+            str(out_dir),
+            "--no-input",
+            "--dry-run",
+            "--size",
+            "0",
+        ],
+    )
+    assert result.exit_code == 2
+    assert not out_dir.exists()
 
 
 def test_curated_views_json_output_contract(monkeypatch, tmp_path: Path) -> None:
@@ -275,7 +466,13 @@ def test_curated_views_json_output_contract(monkeypatch, tmp_path: Path) -> None
                         "source": {"clip": "CLIP18", "date": "2025-04-25"},
                         "crop_norm": {"x0": 0.0, "y0": 0.2, "w": 0.4, "h": 0.4},
                         "trim": {"start_s": 0, "end_s": 2},
-                    }
+                    },
+                    {
+                        "id": "view_2",
+                        "source": {"clip": "CLIP18", "date": "2025-04-25"},
+                        "crop_norm": {"x0": 0.4, "y0": 0.2, "w": 0.4, "h": 0.4},
+                        "trim": {"start_s": 2, "end_s": 4},
+                    },
                 ],
             }
         )
@@ -286,9 +483,44 @@ def test_curated_views_json_output_contract(monkeypatch, tmp_path: Path) -> None
         "cosmos.ffmpeg.detect.prompt_bootstrap_if_needed",
         lambda **_kwargs: None,
     )
+
+    def _fake_crop(
+        _inputs: list[Path], jobs: list[RectCropJob], out: Path, **_kwargs
+    ) -> list[Path]:
+        job = jobs[0]
+        view_id = job.view_id
+        output = out / f"{view_id}.mp4"
+        (out / "cosmos_crop_dry_run.json").write_text(
+            json.dumps(
+                {
+                    "outputs": [
+                        {
+                            "path": str(output),
+                            "kind": "video",
+                            "stage": "crop",
+                            "exists": False,
+                            "will_create_on_apply": True,
+                        }
+                    ],
+                    "commands": [
+                        {
+                            "stage": "crop",
+                            "name": view_id,
+                            "argv": ["ffmpeg", "-i", str(_inputs[0]), str(output)],
+                            "inputs": [str(_inputs[0])],
+                            "outputs": [str(output)],
+                        }
+                    ],
+                    "validation": [],
+                }
+            )
+        )
+        return [output]
+
+    monkeypatch.setattr("cosmos.cli.crop_cli.crop", _fake_crop)
     monkeypatch.setattr(
-        "cosmos.cli.crop_cli.crop",
-        lambda *_args, **_kwargs: [out_dir / "view_1.mp4"],
+        "cosmos.cli.crop_cli.emit_crop_run",
+        lambda **_kwargs: ("crop-run", out_dir / "cosmos_crop_run.v1.json"),
     )
 
     result = runner.invoke(
@@ -310,8 +542,14 @@ def test_curated_views_json_output_contract(monkeypatch, tmp_path: Path) -> None
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
     assert payload["command"] == "cosmos crop curated-views"
-    assert payload["count"] == 1
-    assert payload["outputs"] == [str(out_dir / "view_1.mp4")]
+    assert payload["count"] == 2
+    assert payload["outputs"] == [str(out_dir / "view_1.mp4"), str(out_dir / "view_2.mp4")]
+    assert payload["run_artifact"] == str(out_dir / "cosmos_crop_run.v1.json")
+    assert payload["dry_run_plan"] == str(out_dir / "cosmos_crop_dry_run.json")
+    assert len(payload["output_declarations"]) == 2
+    plan = json.loads((out_dir / "cosmos_crop_dry_run.json").read_text())
+    assert plan["schema"] == "cosmos-dry-run-plan-v1"
+    assert [command["name"] for command in plan["commands"]] == ["view_1", "view_2"]
 
 
 def test_crop_preview_json_output_contract(monkeypatch, tmp_path: Path) -> None:
@@ -417,26 +655,18 @@ def test_curated_views_preview_json_output_contract(monkeypatch, tmp_path: Path)
     assert payload["count"] == 4
 
 
-def test_pipeline_alias_warns_and_processes(monkeypatch, tmp_path: Path) -> None:
+def test_pipeline_alias_is_retired(tmp_path: Path) -> None:
     input_dir = tmp_path / "in"
     output_dir = tmp_path / "out"
     input_dir.mkdir()
     output_dir.mkdir()
 
-    monkeypatch.setattr(
-        "cosmos.cli.cosmos_app.sdk_ingest",
-        lambda *_args, **_kwargs: [output_dir / "clip.mp4"],
-    )
-
     result = runner.invoke(
         app,
         ["pipeline", str(input_dir), str(output_dir), "--dry-run", "--json"],
     )
-    assert result.exit_code == 0
-    payload = json.loads(result.stdout)
-    assert payload["command"] == "cosmos process"
-    assert payload["ingest_count"] == 1
-    assert "deprecated" in result.output
+    assert result.exit_code == 2
+    assert "No such command" in result.output
 
 
 def test_ingest_adapter_flag_visible_in_help() -> None:

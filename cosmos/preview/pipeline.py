@@ -7,6 +7,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from cosmos.preview.contracts import ClipArtifacts, ClipPreviewPlan, CropPreviewRun, ResolvedFrame
 from cosmos.preview.frames import extract_frame, frame_name_for_time, time_tag
@@ -17,16 +18,13 @@ from cosmos.preview.render import (
     render_stacked_overlay,
     render_view_cell,
 )
-from cosmos.sdk.crop import CropJob, RectCropJob
-from cosmos.sdk.provenance import (
-    ffmpeg_version,
-    ffprobe_video,
-    package_version,
-    sha256_file,
-    system_info,
-)
 
-_VIEW_JOB = CropJob | RectCropJob
+if TYPE_CHECKING:
+    from cosmos.sdk.crop import CropJob, RectCropJob
+
+    _VIEW_JOB: TypeAlias = CropJob | RectCropJob
+else:
+    _VIEW_JOB: TypeAlias = Any
 
 
 @dataclass
@@ -107,6 +105,8 @@ def _build_clip_plan(
     out_dir: Path,
     options: RenderOptions,
 ) -> tuple[ClipPreviewPlan, Path, list[float]]:
+    from cosmos.sdk.provenance import ffprobe_video, sha256_file
+
     video = ffprobe_video(source)
     source_w = int(video.get("width_px") or video.get("width") or 0)
     source_h = int(video.get("height_px") or video.get("height") or 0)
@@ -260,6 +260,8 @@ def _generate(
     out_dir: Path,
     options: RenderOptions,
 ) -> PreviewRunResult:
+    from cosmos.sdk.provenance import ffmpeg_version, package_version, system_info
+
     out_dir.mkdir(parents=True, exist_ok=True)
     plans: list[ClipPreviewPlan] = []
     clip_plan_paths: list[Path] = []
@@ -287,7 +289,7 @@ def _generate(
 
     run = CropPreviewRun(
         preview_run_id=f"preview_{uuid.uuid4()}",
-        version=package_version("cosmos"),
+        version=package_version(),
         time=_now_iso(),
         output_dir=str(out_dir),
         frame_selectors=options.frame_selectors,

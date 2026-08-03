@@ -56,13 +56,16 @@ uv run cosmos process /path/to/raw /path/to/out \
   --post-process \
   --crop-config /path/to/jobs.json \
   --profile strict \
+  --skip-ffmpeg-check \
+  --yes \
   --json
 ```
 
 Notes:
 - Use `cosmos process` in new docs/automation.
-- Hidden `cosmos pipeline` alias exists only for backward compatibility.
-- `process` intentionally stays minimal; for CI/headless controls like `--yes` and `--skip-ffmpeg-check`, use `ingest run` and `crop run` directly.
+- `cosmos pipeline` is retired; do not use it.
+- `process --dry-run --json` writes `cosmos_process_dry_run.v1.json` and
+  child ingest stage dry-run artifacts.
 
 ## 5) Optimize derivatives for web delivery
 
@@ -116,21 +119,52 @@ uv run cosmos crop curated-views-preview \
   --yes
 ```
 
-## 8) Pre-release gate (skill + code freshness)
+## 8) Probe exact decoded-frame identities
+
+Use the integer PTS ticks and stream time base when an experiment, annotation,
+or provenance record must bind to exact decoded frames:
+
+```python
+from fractions import Fraction
+
+from cosmos.sdk import probe_video_timeline
+
+timeline = probe_video_timeline("clip.mp4")
+frame_index = 756
+pts_tick = timeline.pts_ticks[frame_index]
+exact_seconds = Fraction(
+    pts_tick * timeline.time_base_numerator,
+    timeline.time_base_denominator,
+)
+```
+
+The ticks are literal ffprobe frame `pts`. Do not replace this join with nominal
+FPS arithmetic, rounded seconds, sorted packet timestamps, or estimated
+timestamps. Timeline probing fails closed when ffprobe cannot provide a
+strictly increasing integral `pts` identity for every decoded frame.
+
+For unattended work that needs a subprocess bound, set positive finite seconds
+at invocation time:
 
 ```bash
-cd /home/caleb/repo/cosmos
+COSMOS_VIDEO_FFMPEG_TIMEOUT=120 uv run python your_video_job.py
+```
+
+## 9) Pre-release gate (skill + code freshness)
+
+From the repository root:
+
+```bash
 make fmt && make lint && make typecheck && make test
 uv run mkdocs build --strict
 ```
 
-## 9) Video decode backend benchmark
+## 10) Video decode backend benchmark
 
 Use this when comparing `cosmos.sdk.video` backends or checking whether Decord
-can be removed from a downstream Linux path:
+can be removed from a downstream Linux path. From the repository root:
 
 ```bash
-cd /home/caleb/repo/cosmos
 uv run python dev/benchmarks/cosmos_video_decode_benchmark.py \
   --out-dir _work/pol-1185/synthetic-smoke
 ```

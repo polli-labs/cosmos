@@ -1,7 +1,7 @@
 # Ingest CLI Reference
 
 Top-level command
-- `cosmos ingest run` — run interactive or non‑interactive ingest.
+- `cosmos ingest run` — normalize source clips into MP4 outputs.
 
 Source adapter selection
 - `--adapter NAME` — choose source adapter explicitly (`cosm` or `generic-media`). When omitted, auto‑detected from directory contents.
@@ -11,7 +11,9 @@ Common options
 - `--output-dir PATH` — output directory.
 - `--yes` — non‑interactive (don't prompt).
 - `--clip NAME` — process only these clip names (repeatable).
-- `--dry-run` — do not execute ffmpeg; write a plan JSON.
+- `--dry-run` — validate and declare outputs without creating media outputs; write
+  `cosmos_ingest_dry_run.v1.json` with adapter/options metadata, typed output
+  declarations, and per-clip argv arrays.
 
 Performance tuning
 - `--scale-filter` — one of `lanczos|spline36|bicubic|bilinear`.
@@ -23,10 +25,10 @@ Performance tuning
 ## Adapters
 
 ### cosm (default for COSM cameras)
-Auto-detected when the input directory contains a `*.xml` manifest. Handles the COSM C360 quad-tile TS-segment layout: manifest parsing, segment validation, and a filter graph that crops, hstacks, and vstacks four tile streams.
+Auto-detected when the input directory contains a `*.xml` manifest. Handles the COSM C360 quad-tile TS-segment layout: manifest parsing, segment validation, and the stitch filter graph.
 
 ### generic-media
-Auto-detected when the input directory contains video files (`.mp4`, `.mov`, `.mkv`, `.avi`, `.ts`, `.mts`, `.webm`) but no COSM manifest. Each video file is treated as a single clip and re-encoded with optional scaling — no tile-stitching filter graph.
+Auto-detected when the input directory contains video files (`.mp4`, `.mov`, `.mkv`, `.avi`, `.ts`, `.mts`, `.webm`) but no COSM manifest. Each video file is one clip and is re-encoded with optional scaling.
 
 Examples
 - Balanced 4K default (COSM auto-detected):
@@ -54,4 +56,6 @@ Outputs
 - `{clip}.mp4` — output video.
 - `{clip}.mp4.cmd.txt` — exact ffmpeg command.
 - `{clip}.mp4.log.txt` — ffmpeg logs.
-- `cosmos_dry_run.json` — plan for all clips when `--dry-run` is used.
+- run-level and per-clip provenance sidecars for real outputs.
+- `cosmos_ingest_dry_run.v1.json` — v1 dry-run plan for all clips when
+  `--dry-run` is used.

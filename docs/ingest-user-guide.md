@@ -1,6 +1,8 @@
 # Ingest User Guide
 
-This guide walks through ingesting video sources into normalized MP4 clips with `cosmos ingest run`. Cosmos supports multiple source layouts through its adapter system and auto-detects the correct one.
+This guide walks through ingesting video sources into normalized MP4 clips with
+`cosmos ingest run`. Cosmos supports multiple source layouts through adapters
+and auto-detects the matching adapter from the input directory.
 
 ## Prerequisites
 
@@ -32,8 +34,8 @@ Cosmos auto-detects the source layout when you point `--input-dir` at a director
 
 | Adapter | Auto-detected when | What it does |
 |---|---|---|
-| **cosm** | `*.xml` manifest in root | Parses COSM C360 manifest, validates TS segments, applies quad-tile stitch filter graph |
-| **generic-media** | Video files present (`.mp4`, `.mov`, `.mkv`, etc.) | Treats each video file as a clip, re-encodes with scaling |
+| **cosm** | `*.xml` manifest in root | Parses COSM C360 manifests, validates TS segments, and applies the quad-tile stitch graph |
+| **generic-media** | Video files present (`.mp4`, `.mov`, `.mkv`, etc.) | Treats each video file as one clip and re-encodes with optional scaling |
 
 To override auto-detection, pass `--adapter NAME`:
 
@@ -68,7 +70,7 @@ Useful variants:
 # Process only selected clips
 cosmos ingest run --input-dir /path/to/input --output-dir ./out --clip CLIP1 --clip CLIP2 --yes
 
-# Dry-run only (plan, no ffmpeg execution)
+# Dry-run only (validate and declare outputs; no media outputs)
 cosmos ingest run --input-dir /path/to/input --output-dir ./out --dry-run --yes
 
 # Ingest a directory of standalone MP4s
@@ -92,7 +94,13 @@ Each processed clip produces:
 - `{clip}.mp4.cmd.txt` (exact ffmpeg command)
 - `{clip}.mp4.log.txt` (ffmpeg output)
 
-Dry-run writes `cosmos_dry_run.json` with planned commands and clip plan.
+Dry-run writes `cosmos_ingest_dry_run.v1.json` with adapter/options metadata,
+typed output declarations, and per-clip executable argv arrays. The JSON stdout
+payload exposes that file as `dry_run_plan`; see
+[Agent-Native Dry-Run Contract](dry-run-contract.md).
+
+Real runs also write run-level and per-clip provenance sidecars. Required
+artifact sidecar write failures fail the run.
 
 ## Troubleshooting
 

@@ -45,7 +45,7 @@ Keep a unified `cosmos` CLI as the canonical interface and standardize machine-s
 ### Recommended PR split
 
 1. PR A: output/error contract and exit-code map (`--json`/`--plain`, stderr discipline, tests).
-2. PR B: command-tree normalization + legacy alias handling (`pipeline` behavior notices).
+2. PR B: command-tree normalization and legacy alias retirement.
 3. PR C: docs/migration guide + command examples + regression tests for non-interactive flows.
 
 ## 2) Standing recurring issue for skill freshness ritual

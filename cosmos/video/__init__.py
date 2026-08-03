@@ -1,9 +1,11 @@
 from cosmos.video.decode import extract_frames_at_indices, extract_frames_at_times
 from cosmos.video.probe import probe_video
+from cosmos.video.timeline import probe_video_timeline
 from cosmos.video.types import (
     CosmosVideoError,
     RgbFrame,
     VideoDecodeError,
+    VideoFrameTimeline,
     VideoProbe,
     VideoProbeError,
 )
@@ -12,9 +14,11 @@ __all__ = [
     "CosmosVideoError",
     "RgbFrame",
     "VideoDecodeError",
+    "VideoFrameTimeline",
     "VideoProbe",
     "VideoProbeError",
     "extract_frames_at_indices",
     "extract_frames_at_times",
     "probe_video",
+    "probe_video_timeline",
 ]

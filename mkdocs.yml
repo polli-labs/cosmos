@@ -27,6 +27,7 @@ nav:
       - Input Structure: input-structure.md
   - CLI:
       - cosmos CLI: cosmos-cli.md
+      - Agent-Native Dry-Run Contract: dry-run-contract.md
       - ingest run flags (legacy reference): ingest-reference.md
       - crop run flags (legacy reference): crop-reference.md
   - SDK: sdk.md

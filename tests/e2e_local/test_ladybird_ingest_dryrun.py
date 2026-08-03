@@ -21,8 +21,10 @@ def test_ladybird_ingest_dryrun(tmp_path: Path) -> None:
     outputs = ingest(input_dir, out_dir, manifest=manifest, options=opts)
     # dry-run should produce planned outputs and a report
     assert len(outputs) >= 1
-    report = out_dir / "cosmos_dry_run.json"
+    report = out_dir / "cosmos_ingest_dry_run.v1.json"
     assert report.exists()
     plan = json.loads(report.read_text())
+    assert plan.get("schema") == "cosmos-dry-run-plan-v1"
     assert plan.get("tool") == "cosmos-ingest"
+    assert isinstance(plan.get("commands"), list)
     assert isinstance(plan.get("clips"), list)

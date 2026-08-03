@@ -7,10 +7,17 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 ### Video
 
 - `probe_video(path) -> VideoProbe`
+- `probe_video_timeline(path) -> VideoFrameTimeline`
 - `extract_frames_at_indices(path, indices, *, probe=None) -> list[RgbFrame]`
 - `extract_frames_at_times(path, times_seconds, *, probe=None) -> list[RgbFrame]`
 - `VideoProbe` exposes source path, dimensions, duration/fps/frame count when known,
   codec names, and format name.
+- `VideoFrameTimeline` is immutable and exposes source path, the first video stream's exact
+  `time_base_numerator` / `time_base_denominator`, and `pts_ticks: tuple[int, ...]` in
+  ffprobe emitted frame order.
+- Timeline probing accepts only each frame's literal `pts`. Missing/`N/A`/non-integral,
+  duplicate, or nonmonotonic identities fail closed; estimated timestamps, packet
+  timestamps, rounded seconds, and nominal-FPS arithmetic are not substituted.
 - `RgbFrame` exposes source path, requested index/time, resolved index/time when known,
   dimensions, and `rgb24` bytes.
 - The public contract intentionally returns raw RGB bytes and typed metadata, not NumPy or
@@ -19,6 +26,11 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   outputs back to the caller's requested order, including duplicate indices.
 - Sparse index extraction may switch to seek-window FFmpeg calls for late or widely separated
   requests, using sorted ffprobe packet PTS values to preserve exact frame-index semantics.
+- A positive finite `COSMOS_VIDEO_FFMPEG_TIMEOUT` bounds metadata probes, exact timeline
+  probes, packet timestamp lookups, and FFmpeg RGB extraction. Unset, blank, invalid,
+  non-positive, or non-finite values mean no timeout. Resolver failures, OS-level launch
+  failures (including missing or permission-denied executables), timeouts, and non-zero
+  process exits remain typed as `VideoProbeError` or `VideoDecodeError`.
 - Default implementation is the `ffmpeg-cli` backend through the shared `cosmos.ffmpeg`
   resolver policy. Optional `polli-cosmos[video-av]` installs PyAV/NumPy for explicit
   `COSMOS_VIDEO_BACKEND=pyav` use, or `COSMOS_VIDEO_BACKEND=auto` for a platform-aware
@@ -37,6 +49,8 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 - `ingest(input_dir, output_dir, *, manifest, options) -> list[Path]`
 - `IngestOptions` controls quality mode, resolution, dry-run, clip filtering, decoder preference, filter-thread knobs, determinism profile (`profile`), and source adapter selection (`adapter` field).
+- Ingest dry-run writes `cosmos_ingest_dry_run.v1.json` with adapter/options
+  metadata, typed output declarations, and per-clip executable argv arrays.
 - Adapter contract: `IngestAdapter` Protocol in `cosmos.ingest.adapter` — defines `detect()`, `discover_clips()`, `validate_clip()`, `build_ffmpeg_spec()`, `validate_system()`.
 - Built-in adapters: `cosm` (COSM C360), `generic-media` (flat video directory). Auto-detected by default; explicit via `IngestOptions.adapter` or CLI `--adapter`.
 
@@ -47,6 +61,8 @@ Current SDK and CLI contracts to preserve when changing interfaces.
   - `CropJob` (square mode)
   - `RectCropJob` (rect mode, includes `view_id`, `annotations`)
 - `crop()` requires homogeneous job lists (all square or all rect).
+- Crop dry-run writes `cosmos_crop_dry_run.json` and returns planned output
+  paths without creating placeholder MP4 files or per-output view sidecars.
 
 ### Preview
 
@@ -56,6 +72,11 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 - Preview outputs are bundle-oriented:
   - run-level `cosmos_crop_preview_run.v1.json`
   - per-clip `preview_plan.v1.json` + image artifacts (`frames/`, `sheets/`, `stacked/`)
+- `PreviewRect` retains exactly eight serialized preview-plan v1 fields:
+  `x_px`, `y_px`, `w_px`, `h_px`, `x_norm`, `y_norm`, `w_norm`, and `h_norm`.
+- `PreviewRect.typus_bbox` is a read-only derived `BBoxXYWHNorm | None`; `None`
+  means the known lossy normalized rectangle is not representable by Typus, not
+  that geometry is missing.
 
 ### Optimize
 
@@ -68,7 +89,7 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 - Optimize outputs emit:
   - run-level `cosmos_optimize_run.v1.json`
   - per-output `*.mp4.cosmos_optimized.v1.json` (non-dry-run)
-  - dry-run plan `cosmos_optimize_dry_run.json`
+  - dry-run plan `cosmos_optimize_dry_run.json` with per-output `command` argv arrays
 - Encoder behavior:
   - auto-selected hardware encoders are runtime-probed and degrade to `libx264` when unavailable.
   - explicitly forced encoders are treated as strict and fail fast on ffmpeg errors.
@@ -100,13 +121,14 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 - `cosmos optimize ...`
 - `cosmos provenance ...`
 - `cosmos lineage ...`
-- hidden legacy alias: `cosmos pipeline ...` (deprecated compatibility command; do not use in new docs/examples)
+- retired legacy alias: `cosmos pipeline ...` is no longer available; use
+  `cosmos process`.
 
 ### Process command
 
 - `cosmos process <input_dir> <output_dir>`
   - flow flags: `--post-process`, `--crop-config`
-  - run-control flags: `--dry-run`, `--clip`, `--profile`
+  - run-control flags: `--dry-run`, `--clip`, `--profile`, `--yes/--no-input`, `--skip-ffmpeg-check`
   - output flags: `--json|--plain`
 
 ### Crop commands
@@ -156,7 +178,13 @@ Current SDK and CLI contracts to preserve when changing interfaces.
 
 - `--yes` to suppress prompts on interactive commands that expose it (for example `ingest run`, `crop run`, `optimize run`).
 - `--skip-ffmpeg-check` to suppress bootstrap prompt where supported.
-- `--dry-run` must avoid side-effectful encode execution.
+- `--dry-run` must avoid side-effectful encode execution and media-output
+  writes, while still reporting declared outputs only after inputs/options
+  validate.
+- Media-execution dry-runs expose `dry_run_plan` in CLI JSON when they write a
+  plan artifact.
+- Executable plan commands are argv arrays under the v1 plan `commands` list,
+  not shell strings.
 - machine-safe mode: use `--json` for structured payloads, keep parseable data on stdout.
 
 ## Exit-code policy (target contract for redesign)

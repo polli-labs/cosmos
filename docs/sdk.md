@@ -1,7 +1,7 @@
 # Cosmos SDK (Python)
 
-Cosmos exposes a stable SDK for video probe/decode, ingest, crop, preview, optimize, and
-provenance tasks.
+Cosmos exposes SDK entry points for video probe/decode, ingest, crop, preview,
+optimize, lineage, and provenance tasks.
 
 ## SDK entry points
 
@@ -14,6 +14,7 @@ from cosmos.sdk import (
     optimize,
     OptimizeOptions,
     probe_video,
+    probe_video_timeline,
     extract_frames_at_indices,
     extract_frames_at_times,
     DeterminismProfile,
@@ -24,19 +25,41 @@ from cosmos.sdk import (
 ## Video probe/decode API
 
 ```python
+from fractions import Fraction
 from pathlib import Path
-from cosmos.sdk.video import probe_video, extract_frames_at_indices, extract_frames_at_times
+
+from cosmos.sdk.video import (
+    extract_frames_at_indices,
+    extract_frames_at_times,
+    probe_video,
+    probe_video_timeline,
+)
 
 source = Path("clip.mp4")
 probe = probe_video(source)
+timeline = probe_video_timeline(source)
 frames = extract_frames_at_indices(source, [0, 10])
 time_frames = extract_frames_at_times(source, [0.0, 2.5])
+
+# Exact decoded-frame identity without a rounded-seconds join.
+frame_10_pts = timeline.pts_ticks[10]
+frame_10_time = Fraction(
+    frame_10_pts * timeline.time_base_numerator,
+    timeline.time_base_denominator,
+)
 ```
 
 Video substrate behavior:
 
 - `probe_video()` returns typed metadata for the first video stream, including dimensions,
   duration/fps/frame count when ffprobe reports them, codec names, and source path.
+- `probe_video_timeline()` returns an immutable `VideoFrameTimeline` with the selected video
+  stream's exact integer time-base numerator/denominator and one integer PTS tick per decoded
+  frame, in ffprobe emitted frame order. The literal frame `pts` field is the sole identity
+  authority; estimated `best_effort_timestamp` values are never substituted.
+- Timeline probing fails closed on missing or malformed stream time bases and on missing,
+  non-integral, duplicate, or nonmonotonic frame identities. It does not derive frame identity
+  from rounded seconds, sorted packet timestamps, nominal FPS, or estimated timestamps.
 - Frame extraction returns `RgbFrame` objects with source/request metadata and raw `rgb24`
   bytes. Cosmos does not return NumPy arrays or PIL images from this public contract.
 - Sparse index extraction batches unique requested indices into one FFmpeg pass, then
@@ -60,6 +83,11 @@ Video substrate behavior:
   itself is not enough when the shared libraries are unavailable to the dynamic loader.
 - Binary resolution follows the shared Cosmos ffmpeg/ffprobe policy (`COSMOS_FFMPEG`,
   `COSMOS_FFPROBE`, managed binaries, then system PATH).
+- Set `COSMOS_VIDEO_FFMPEG_TIMEOUT` to a positive finite number of seconds to bound
+  ffmpeg/ffprobe subprocesses used for metadata probing, exact timeline probing, packet
+  timestamp lookup, and RGB frame extraction. Unset, blank, invalid, non-positive, and
+  non-finite values retain the historical unbounded behavior. A timeout raises the same
+  typed `VideoProbeError` or `VideoDecodeError` as other video subprocess failures.
 
 ## Ingest API
 
@@ -97,7 +125,8 @@ outputs = ingest(
 Notes:
 
 - The `adapter` field selects the source layout adapter (`"cosm"`, `"generic-media"`). When `None` (default), the adapter is auto-detected from directory contents.
-- `dry_run=True` writes `cosmos_dry_run.json` (planned commands and clip plan).
+- `dry_run=True` writes `cosmos_ingest_dry_run.v1.json` with adapter/options
+  metadata, typed output declarations, and per-clip executable argv arrays.
 - Real runs produce `{clip}.mp4.cmd.txt` and `{clip}.mp4.log.txt` alongside outputs.
 - `clips=[...]` restricts ingest to a subset by clip name.
 
@@ -114,6 +143,10 @@ outputs = crop(
     ffmpeg_opts={"dry_run": False},
 )
 ```
+
+With `ffmpeg_opts={"dry_run": True}`, crop returns planned output paths and
+writes `cosmos_crop_dry_run.json`, but it does not create placeholder MP4
+outputs or per-output view sidecars.
 
 Jobs files:
 
@@ -155,6 +188,21 @@ Preview outputs:
 - `cosmos_crop_preview_run.v1.json`
 - per-clip bundle with `preview_plan.v1.json`, `frames/`, `sheets/`, and `stacked/`
 
+### Canonical geometry view
+
+`PreviewRect` keeps its eight preview-plan v1 fields unchanged. Its pixel fields remain the
+authoritative ffmpeg crop after clamping and forced-even rounding; the normalized fields are
+lossy projections of those pixels.
+
+Use the read-only `PreviewRect.typus_bbox` property when a downstream SDK consumer needs the
+canonical Typus `BBoxXYWHNorm` view. It returns `None` when the known rectangle is not
+representable by Typus, including a valid v1 zero normalized extent or rounded normalized bounds
+that Typus rejects. `None` does not mean that Cosmos lacks geometry, and Cosmos never invents a
+positive epsilon or adjusts a boundary to make the value fit.
+
+The property is derived and is not serialized, so `crop_px` retains exactly its existing eight
+schema-v1 keys and byte shape.
+
 ## Optimize API
 
 ```python
@@ -187,7 +235,7 @@ Optimize behavior and artifacts:
   Per-field overrides (e.g. `encoder=`) always take precedence over profile defaults.
 - Run-level artifact: `cosmos_optimize_run.v1.json`
 - Output artifact (non-dry-run): `*.mp4.cosmos_optimized.v1.json`
-- Dry-run plan: `cosmos_optimize_dry_run.json`
+- Dry-run plan: `cosmos_optimize_dry_run.json` with per-output `command` argv arrays.
 
 ## Lineage graph API
 
@@ -231,8 +279,15 @@ See [Provenance](provenance.md) for join-key patterns and schema links.
 ## Error handling notes
 
 - Missing required input paths raise `ValueError` early.
-- Video probe/decode helpers raise `VideoProbeError` or `VideoDecodeError` with ffmpeg/ffprobe
-  stderr when tool execution fails.
-- Dry-runs avoid ffmpeg execution and return planned output paths.
-- For real runs, ffmpeg stderr/stdout is persisted in sidecar logs; CLI wrappers map
-  failures to non-zero exits while SDK calls return successful outputs only.
+- Video metadata/timeline helpers raise `VideoProbeError`, and RGB extraction helpers raise
+  `VideoDecodeError`, with stable resolver, OS-level launch (including missing or
+  permission-denied executables), timeout, exit-code, and stderr context when
+  ffmpeg/ffprobe execution fails.
+- Dry-runs avoid applying planned media transforms or creating media outputs
+  and return planned output paths after validation. Some SDK paths may still
+  run bounded local ffmpeg/ffprobe preflight or probing while planning. See
+  [Agent-Native Dry-Run Contract](dry-run-contract.md) for the
+  command-by-command plan contract.
+- For real runs, ffmpeg stderr/stdout is persisted in sidecar logs where the
+  command emits them, required artifact sidecar failures fail the run, and CLI
+  wrappers map failures to non-zero exits.
