@@ -3,69 +3,133 @@ title: "Cosmos — Agent/Dev Guide"
 doc_type: "agents"
 status: "active"
 owner: "polli-labs"
-last_modified: "2026-05-06T22:35:00Z"
-last_reviewed: "2026-05-06T22:35:00Z"
+last_modified: "2026-08-03T20:25:07Z"
+last_reviewed: "2026-08-03T20:25:07Z"
 scope: "repository:cosmos"
 ---
 
 # Cosmos — Agent/Dev Guide
 
 Repo-specific instructions for `polli-labs/cosmos`.
-Keep this file public-safe: no private customer/project context here.
+Keep this file public-safe: no private customer or project context belongs here.
 
 ## Canonical model
 
+- Current package version: `0.9.0`
 - One CLI: `cosmos`
 - One SDK: `cosmos.sdk`
-- One instruction source: `AGENTS.md` (with `CLAUDE.md` as a symlink to `AGENTS.md` when possible)
+- One instruction source: `AGENTS.md`, with `CLAUDE.md` as a symlink to
+  `AGENTS.md` when possible.
 
 Cosmos is a provenance-first video normalization toolkit:
-- ingest heterogeneous video layouts via adapters
-- generate deterministic web-ready derivatives
-- emit machine-joinable provenance sidecars
 
-## Command surfaces
+- ingest heterogeneous video layouts through adapters;
+- generate deterministic web-ready derivatives;
+- emit machine-joinable provenance sidecars;
+- expose typed video metadata, exact decoded-frame identities, and RGB frames.
+
+## Command and SDK surfaces
 
 - Root commands:
-  - `cosmos process` (canonical ingest -> optional crop flow)
+  - `cosmos process`
   - `cosmos ingest`
   - `cosmos crop`
   - `cosmos optimize`
   - `cosmos provenance`
   - `cosmos lineage`
-- Hidden compatibility alias:
-  - `cosmos pipeline` (do not use in new docs/workflows)
-- SDK video surface:
-  - `cosmos.sdk.video` exposes typed `VideoProbe` metadata and `RgbFrame`
-    `rgb24` byte extraction without NumPy/PIL return objects.
-  - Optional decode backends stay explicit and lazy-imported. FFmpeg CLI is the
-    default backend; PyAV and TorchCodec are optional extras for benchmarked
-    experiments.
+- `cosmos process` is the canonical ingest-to-optional-crop flow.
+- The legacy `cosmos pipeline` alias is retired and must not appear in new
+  documentation or automation.
+- `cosmos.sdk.video` exposes:
+  - `VideoProbe`
+  - `VideoFrameTimeline`
+  - `RgbFrame`
+  - `probe_video()`
+  - `probe_video_timeline()`
+  - `extract_frames_at_indices()`
+  - `extract_frames_at_times()`
+- Importing `cosmos.sdk.video` must not require PyAV, NumPy, TorchCodec, or
+  PyTorch unless an optional backend that needs them is selected.
 
-## Repo map
+## Dry-run contract
 
-- `cosmos/sdk/` — canonical business logic entry points
-  - `ingest`, `crop`, `optimize`, `preview`, `lineage`, `profiles`, `provenance`
-- `cosmos/ingest/` — adapter contract, adapter registry, source-layout-specific behavior
-- `cosmos/crop/` — square/rect crop execution and jobs parsing
-- `cosmos/preview/` — contact sheet + stacked-overlay preview generation
-- `cosmos/ffmpeg/` — ffmpeg/encoder detection and argument builders
-- `cosmos/video/` — typed FFmpeg-backed video probe/frame extraction and
-  optional backend experiments
-- `cosmos/cli/` — Typer app surfaces (thin wrappers over SDK)
+The canonical contract is `docs/dry-run-contract.md`.
+
+- Media-execution dry-runs must not apply the planned transform or create media
+  outputs.
+- Inputs and options still validate before declared outputs are reported.
+- CLI JSON includes `dry_run_plan` when a plan artifact is produced.
+- Executable plan entries are argv arrays, never shell command strings.
+- Dry-run planning may write declared plan metadata, but it must not fabricate
+  placeholder MP4 files or per-output artifact sidecars.
+- Bounded local ffmpeg or ffprobe preflight may still run when planning depends
+  on source metadata or executable resolution.
+
+## Exact video timeline contract
+
+Use `probe_video_timeline()` when evidence must bind to exact decoded frames.
+
+- `VideoFrameTimeline` contains the first video stream's integer time base and
+  one literal ffprobe frame `pts` tick per decoded frame, in emitted frame
+  order.
+- Missing, non-integral, duplicate, or nonmonotonic PTS identities fail closed.
+- Do not substitute rounded seconds, nominal-FPS arithmetic, packet-order
+  timestamps, best-effort timestamps, or estimated identities.
+- A positive finite `COSMOS_VIDEO_FFMPEG_TIMEOUT` bounds metadata probes,
+  timeline probes, packet timestamp lookups, and FFmpeg RGB extraction.
+- Unset, blank, invalid, non-positive, or non-finite timeout values preserve
+  historical unbounded behavior.
+- Resolver, launch, timeout, and process failures remain typed
+  `VideoProbeError` or `VideoDecodeError`.
+
+## Preview geometry contract
+
+`PreviewRect` preserves the preview-plan v1 wire contract.
+
+- Its serialized source of truth remains exactly:
+  - `x_px`
+  - `y_px`
+  - `w_px`
+  - `h_px`
+  - `x_norm`
+  - `y_norm`
+  - `w_norm`
+  - `h_norm`
+- Pixel coordinates remain the authoritative ffmpeg-derived geometry after
+  truncation, even rounding, and frame-bound clamping.
+- `PreviewRect.typus_bbox` is a read-only derived
+  `polli-typus` `BBoxXYWHNorm | None`.
+- `typus_bbox` is not serialized as a ninth field.
+- `None` means the known lossy normalized rectangle is not representable by
+  Typus. It does not mean geometry is missing and is never permission to
+  fabricate an epsilon or adjust a boundary.
+
+## Repository map
+
+- `cosmos/sdk/` — public business-logic entry points
+- `cosmos/ingest/` — adapter contract, discovery, and ingest behavior
+- `cosmos/crop/` — square and rectangle crop execution
+- `cosmos/preview/` — preview contracts, geometry planning, and rendering
+- `cosmos/video/` — typed probe, exact timeline, and frame extraction
+- `cosmos/ffmpeg/` — executable resolution and shared command helpers
+- `cosmos/cli/` — thin Typer wrappers over SDK surfaces
 - `schema/cosmos/`, `docs/schemas/` — provenance schema contracts
-- `skills/cosmos/` — in-repo Cosmos skill package (release-critical)
+- `skills/cosmos/` — release-critical in-repo Cosmos skill package
 
-## Adapter + determinism model
+## Adapter and determinism model
 
 - Ingest adapter contract: `IngestAdapter` in `cosmos.ingest.adapter`
 - Built-in adapters:
-  - `cosm` (COSM C360)
-  - `generic-media` (flat media directories)
-- Determinism profiles across ingest/crop/optimize:
-  - `strict`, `balanced`, `throughput`
+  - `cosm`
+  - `generic-media`
+- Determinism profiles:
+  - `strict`
+  - `balanced`
+  - `throughput`
 - Profile precedence:
-  - CLI `--profile` > `COSMOS_PROFILE` > command defaults
+  - CLI `--profile`
+  - `COSMOS_PROFILE`
+  - command default
 
 ## Provenance invariants
 
@@ -85,44 +149,50 @@ Cosmos is a provenance-first video normalization toolkit:
 
 ## Working rules
 
-- Keep CLI wrappers thin; route behavior through `cosmos/sdk/*`.
-- Preserve machine-safe output patterns (`--json`, `--plain`) and stable field names.
-- Keep explicit user overrides authoritative (for example forced encoders should fail loudly, not silently degrade).
-- Preserve crop semantics:
-  - square offsets: `offset_x` / `offset_y` in `[-1, 1]`
-  - rect geometry clamp/even-round behavior
-- Use shared ffmpeg helpers; avoid ad hoc command construction.
-- Keep optional video backends lazy-imported. Importing `cosmos.sdk.video`
-  must not require PyAV, NumPy, TorchCodec, or PyTorch unless that backend is
-  selected.
-- For public-promotion work, preserve public-owned security and instruction
-  surfaces while keeping the package, docs, workflow, and lockfile surfaces at
-  public-safe parity.
+- Keep CLI wrappers thin and route behavior through `cosmos/sdk/*`.
+- Preserve machine-safe output patterns, including `--json`, `--plain`, and
+  stable field names.
+- Keep explicit user overrides authoritative. A forced encoder must fail
+  clearly rather than silently selecting another implementation.
+- Preserve square-offset and rectangle clamp/even-round behavior.
+- Use shared ffmpeg helpers rather than constructing ad hoc subprocess
+  commands.
+- Keep optional video backends lazy-imported.
+- Preserve public errors and the shared video timeout contract.
+- Use `make check` as the canonical local gate.
+- Refresh `uv.lock` with `uv lock` whenever dependency metadata changes.
 
-## Release ritual (critical)
+## Release ritual
 
-Before tagging any release, these are required:
+Before a public release tag:
 
-1. **Docs audit**
-  - Update affected docs pages and examples for new/changed surfaces.
-  - Run `uv run mkdocs build --strict`.
-1. **Skill audit**
-  - Update `skills/cosmos/SKILL.md` and relevant `skills/cosmos/references/*`.
-  - Follow `skills/cosmos/references/maintenance-ritual.md`.
-1. **Instruction audit**
-  - Refresh this file and `docs/migration/dev_public_release_contract.md`
-    whenever repo-local remotes, clone paths, or standing overrides change.
-1. **Code quality gate**
-  - `make check`.
-1. **Receipts**
-  - Leave explicit receipts in Linear release/tracker issues (commands, PRs, runs, tags, release URL/assets).
+1. Update affected docs and examples, then run
+   `uv run mkdocs build --strict`.
+2. Update `skills/cosmos/SKILL.md` and relevant skill references.
+3. Refresh this file and
+   `docs/migration/dev_public_release_contract.md` when the public/private
+   boundary changes.
+4. Run:
+   - `uv lock --check`
+   - `make check`
+   - locked release-environment sync
+   - wheel build
+   - `twine check`
+   - isolated installation from the built wheel
+   - installed-wheel import smoke for video, timeline, and PreviewRect Typus
+     geometry
+5. Tag and publish from `polli-labs/cosmos` only.
+6. Record the PR, exact candidate SHA, tag, workflow run, release asset, PyPI
+   artifact, and matching hashes in the owning Linear issue.
 
-Treat docs + skill + AGENTS/CLAUDE freshness as release-quality requirements, not optional polish.
+Treat docs, skill, instructions, wheel installation, and release receipts as
+release-quality requirements.
 
 ## Canonical commands
 
 ```bash
 make check
+uv lock --check
 uv run mkdocs build --strict
 uv run cosmos --help
 uv run cosmos process --help
@@ -134,6 +204,20 @@ uv run cosmos lineage --help
 
 ## Public/private boundary
 
-- Keep this repo’s AGENTS content public-safe.
-- Private development guidance belongs in `polli-labs/cosmos-dev`; do not copy
-  private-repo worktree instructions into this public guide.
+The reviewed private repository is `polli-labs/cosmos-dev`; this repository is
+the public release surface.
+
+Public promotion defaults to the complete immutable reviewed private tree, with
+exactly four public-owned exceptions:
+
+1. `AGENTS.md`
+2. `.github/workflows/codeql.yml`
+3. `.github/workflows/docs.yml`
+4. `.github/workflows/publish.yml`
+
+The public docs workflow is build-only until a deployment owner is established.
+The public publish workflow is the sole tag-triggered package and GitHub-release
+mutation authority. Public CodeQL remains owned by the repository's public
+security configuration.
+
+Any fifth divergent path is unclassified drift and must fail promotion closed.

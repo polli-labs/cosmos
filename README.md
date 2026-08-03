@@ -4,21 +4,24 @@
 [![Docs](https://github.com/polli-labs/cosmos/actions/workflows/docs.yml/badge.svg)](https://github.com/polli-labs/cosmos/actions/workflows/docs.yml)
 [![PyPI](https://img.shields.io/pypi/v/polli-cosmos.svg)](https://pypi.org/project/polli-cosmos/)
 
-Cosmos is a provenance-first video normalization toolkit for agent and human media pipelines.
+Cosmos is a provenance-first video normalization toolkit for agent and human
+media pipelines.
 
 It turns heterogeneous camera/video inputs into deterministic, web-ready derivatives and
-emits machine-joinable sidecars so downstream systems can trust, trace, and reproduce each asset.
+emits machine-joinable sidecars so downstream systems can trace and reproduce
+each asset.
 
 Cosmos is designed for both operators and automation:
 
-- `cosmos` CLI for ingest/crop/optimize/provenance workflows
-- `cosmos.sdk` for stable Python integration, including typed video probe/frame extraction
-- run-level and artifact-level provenance sidecars for reproducibility
+- `cosmos` CLI for process/ingest/crop/optimize/provenance/lineage workflows
+- `cosmos.sdk` for stable Python integration, including typed metadata probing, exact
+  decoded-frame PTS timelines, and frame extraction
+- run-level and artifact-level provenance sidecars for real outputs
 
 ## Scope today
 
 - First-class adapter for COSM camera ingest workflows (manifest-aware processing)
-- General MP4 post-processing surfaces for crop, preview, optimize, and provenance lookup
+- General MP4 post-processing surfaces for crop, preview, optimize, provenance lookup, and lineage queries
 - Typed FFmpeg-backed video metadata and RGB frame extraction for downstream SDK consumers
 - Deterministic CLI contracts suitable for unattended agent execution
 
@@ -70,6 +73,7 @@ make docs-setup
 
 ```bash
 cosmos --help
+cosmos process --help
 cosmos ingest run --help
 cosmos crop run --help
 cosmos optimize run --help
@@ -82,6 +86,12 @@ cosmos crop preview --help
 
 ```bash
 make run.ingest IN=/path/to/raw OUT=./out YES=1
+```
+
+For the root ingest plus optional crop workflow:
+
+```bash
+cosmos process /path/to/raw ./out --plain
 ```
 
 ### 2) Crop MP4 views with jobs JSON
@@ -144,6 +154,7 @@ Other common fields:
 - Clip IDs: `clip-<stem>-<sha8>`
 - View IDs: `view-<stem>-<sha8>`
 - Optimize sidecars: `*.mp4.cosmos_optimized.v1.json`
+- Real output runs fail if required artifact sidecars cannot be written.
 
 Core join behavior:
 

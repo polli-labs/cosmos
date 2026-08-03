@@ -242,7 +242,7 @@ def _select_index_term(index: int) -> str:
 def _frame_indices_command(source_path: Path, indices: Sequence[int]) -> list[str]:
     select_expression = "+".join(_select_index_term(index) for index in indices)
     return [
-        resolve_ffmpeg_path(),
+        _resolve_ffmpeg_for_decode(source_path),
         "-v",
         "error",
         "-i",
@@ -274,7 +274,7 @@ def _seek_frame_indices_command(
 ) -> list[str]:
     select_expression = "+".join(_select_index_term(offset) for offset in offsets)
     return [
-        resolve_ffmpeg_path(),
+        _resolve_ffmpeg_for_decode(source_path),
         "-v",
         "error",
         "-accurate_seek",
@@ -303,7 +303,7 @@ def _seek_frame_indices_command(
 
 def _frame_time_command(source_path: Path, time_seconds: float) -> list[str]:
     return [
-        resolve_ffmpeg_path(),
+        _resolve_ffmpeg_for_decode(source_path),
         "-v",
         "error",
         "-i",
@@ -323,6 +323,15 @@ def _frame_time_command(source_path: Path, time_seconds: float) -> list[str]:
         "rgb24",
         "pipe:1",
     ]
+
+
+def _resolve_ffmpeg_for_decode(source_path: Path) -> str:
+    try:
+        return resolve_ffmpeg_path()
+    except Exception as exc:
+        raise VideoDecodeError(
+            f"ffmpeg could not be resolved while extracting frames from {source_path}: {exc}"
+        ) from exc
 
 
 def _packet_timestamps_for_source(source_path: Path) -> tuple[float, ...]:
@@ -376,21 +385,27 @@ def _packet_timestamps_for_source_cached(
 
 def _run_ffprobe_packet_timestamps(source_path: Path) -> str:
     timeout = _video_subprocess_timeout_seconds()
-    ffprobe = "ffprobe"
     try:
         ffprobe = resolve_ffprobe_path()
-        cmd = [
-            ffprobe,
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_entries",
-            "packet=pts_time",
-            "-of",
-            "json",
-            str(source_path),
-        ]
+    except Exception as exc:
+        raise VideoDecodeError(
+            f"ffprobe could not be resolved while reading packet timestamps "
+            f"from {source_path}: {exc}"
+        ) from exc
+
+    cmd = [
+        ffprobe,
+        "-v",
+        "error",
+        "-select_streams",
+        "v:0",
+        "-show_entries",
+        "packet=pts_time",
+        "-of",
+        "json",
+        str(source_path),
+    ]
+    try:
         completed = subprocess.run(  # noqa: S603
             cmd,
             check=True,
@@ -403,7 +418,7 @@ def _run_ffprobe_packet_timestamps(source_path: Path) -> str:
             f"ffprobe timed out after {_format_timeout(timeout)} while reading packet "
             f"timestamps from {source_path}."
         ) from exc
-    except FileNotFoundError as exc:
+    except OSError as exc:
         raise VideoDecodeError(
             f"ffprobe could not be launched at {ffprobe!r}. "
             "Install ffprobe or set COSMOS_FFPROBE to a valid executable."
@@ -413,11 +428,6 @@ def _run_ffprobe_packet_timestamps(source_path: Path) -> str:
         raise VideoDecodeError(
             f"ffprobe failed while reading packet timestamps from {source_path} "
             f"with exit code {exc.returncode}: {stderr}"
-        ) from exc
-    except Exception as exc:
-        raise VideoDecodeError(
-            f"ffprobe could not be resolved while reading packet timestamps "
-            f"from {source_path}: {exc}"
         ) from exc
     return completed.stdout if isinstance(completed.stdout, str) else ""
 
@@ -442,7 +452,7 @@ def _run_ffmpeg_rawvideo(
             f"ffmpeg timed out after {_format_timeout(timeout)} while extracting "
             f"{request} from {source_path}."
         ) from exc
-    except FileNotFoundError as exc:
+    except OSError as exc:
         ffmpeg = cmd[0] if cmd else "ffmpeg"
         raise VideoDecodeError(
             f"ffmpeg could not be launched at {ffmpeg!r}. "

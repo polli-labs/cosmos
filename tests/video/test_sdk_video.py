@@ -697,6 +697,29 @@ def test_probe_video_wraps_ffprobe_resolver_errors(
         probe_video(src)
 
 
+def test_probe_video_wraps_permission_error_at_launch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import cosmos.video.probe as probe_mod
+
+    src = tmp_path / "tiny.mp4"
+    src.write_bytes(b"placeholder")
+
+    def _raise_permission_error(cmd: list[str], **_kwargs: Any) -> None:
+        raise PermissionError(cmd[0])
+
+    monkeypatch.setattr(probe_mod, "resolve_ffprobe_path", lambda: "/forbidden/ffprobe")
+    monkeypatch.setattr(probe_mod.subprocess, "run", _raise_permission_error)
+
+    with pytest.raises(
+        VideoProbeError, match="ffprobe could not be launched at '/forbidden/ffprobe'"
+    ) as error:
+        probe_video(src)
+
+    assert isinstance(error.value.__cause__, PermissionError)
+
+
 def test_extract_frames_uses_cosmos_ffmpeg_resolver(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -736,6 +759,65 @@ def test_extract_frames_uses_cosmos_ffmpeg_resolver(
             rgb24=b"\x00" * 12,
         )
     ]
+
+
+def test_exported_extractors_wrap_ffmpeg_resolver_errors(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import cosmos.video.backends.ffmpeg_cli as ffmpeg_mod
+
+    src = tmp_path / "tiny.mp4"
+    src.write_bytes(b"placeholder")
+    probe = VideoProbe(
+        source_path=src,
+        width=2,
+        height=2,
+        duration_seconds=1.0,
+        frame_count=2,
+        fps=1.0,
+    )
+
+    def _raise_resolver_error() -> str:
+        raise RuntimeError("resolver unavailable")
+
+    monkeypatch.setenv("COSMOS_VIDEO_BACKEND", "ffmpeg-cli")
+    monkeypatch.setattr(ffmpeg_mod, "resolve_ffmpeg_path", _raise_resolver_error)
+
+    for extract in (
+        lambda: extract_frames_at_indices(src, [0], probe=probe),
+        lambda: extract_frames_at_times(src, [0.0], probe=probe),
+    ):
+        with pytest.raises(
+            VideoDecodeError, match="ffmpeg could not be resolved.*resolver unavailable"
+        ) as error:
+            extract()
+        assert isinstance(error.value.__cause__, RuntimeError)
+
+
+def test_exported_extractor_wraps_permission_error_at_launch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import cosmos.video.backends.ffmpeg_cli as ffmpeg_mod
+
+    src = tmp_path / "tiny.mp4"
+    src.write_bytes(b"placeholder")
+    probe = VideoProbe(source_path=src, width=2, height=2, frame_count=1, fps=1.0)
+
+    def _raise_permission_error(cmd: list[str], **_kwargs: Any) -> None:
+        raise PermissionError(cmd[0])
+
+    monkeypatch.setenv("COSMOS_VIDEO_BACKEND", "ffmpeg-cli")
+    monkeypatch.setattr(ffmpeg_mod, "resolve_ffmpeg_path", lambda: "/forbidden/ffmpeg")
+    monkeypatch.setattr(ffmpeg_mod.subprocess, "run", _raise_permission_error)
+
+    with pytest.raises(
+        VideoDecodeError, match="ffmpeg could not be launched at '/forbidden/ffmpeg'"
+    ) as error:
+        extract_frames_at_indices(src, [0], probe=probe)
+
+    assert isinstance(error.value.__cause__, PermissionError)
 
 
 def test_extract_frames_wraps_ffmpeg_timeout(

@@ -6,138 +6,224 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    if: github.repository == 'polli-labs/cosmos'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
       - name: Set up uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           version: "0.11.20"
           enable-cache: false
+
       - name: Cache uv package cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-3.12-${{ hashFiles('pyproject.toml', 'uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-uv-3.12-
+
       - name: Sync dev environment
         run: uv sync --extra dev --locked
-      - name: Format check
-        run: uv run ruff format --check .
-      - name: Lint
-        run: uv run ruff check .
-      - name: Type-check
-        run: uv run ty check
-      - name: Run tests
-        run: uv run pytest -q
+
+      - name: Canonical quality gate
+        run: make check
 
   build-and-publish:
+    if: github.repository == 'polli-labs/cosmos'
     needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+
       - name: Set up uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           version: "0.11.20"
           enable-cache: false
-      - name: Cache uv package cache
-        uses: actions/cache@v5
+
+      - name: Cache locked release environment
+        uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/uv
           key: ${{ runner.os }}-uv-3.12-release-${{ hashFiles('pyproject.toml', 'uv.lock') }}
           restore-keys: |
             ${{ runner.os }}-uv-3.12-release-
             ${{ runner.os }}-uv-3.12-
+
       - name: Sync release environment
         run: uv sync --extra release --locked
-      - name: Verify tag matches project version
-        if: startsWith(github.ref, 'refs/tags/v')
+
+      - name: Read project version and verify tag
+        id: version
+        shell: bash
         run: |
-          tag_version="${GITHUB_REF_NAME#v}"
           project_version="$(uv run python - <<'PY'
           import tomllib
 
-          with open("pyproject.toml", "rb") as f:
-              print(tomllib.load(f)["project"]["version"])
+          with open("pyproject.toml", "rb") as file:
+              print(tomllib.load(file)["project"]["version"])
           PY
           )"
-          if [ "${tag_version}" != "${project_version}" ]; then
-            echo "Tag v${tag_version} does not match pyproject version ${project_version}" >&2
-            exit 1
+          echo "project_version=${project_version}" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            tag_version="${GITHUB_REF_NAME#v}"
+            if [[ "${tag_version}" != "${project_version}" ]]; then
+              echo "Tag v${tag_version} does not match pyproject version ${project_version}" >&2
+              exit 1
+            fi
           fi
+
       - name: Build wheel
         run: uv run python -m build --wheel --no-isolation
+
       - name: Check wheel
         run: uv run twine check dist/*.whl
+
+      - name: Install and smoke-test built wheel
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.project_version }}
+        run: |
+          wheel_paths=(dist/*.whl)
+          if [[ "${#wheel_paths[@]}" -ne 1 || ! -f "${wheel_paths[0]}" ]]; then
+            echo "Expected exactly one built wheel, found: ${wheel_paths[*]}" >&2
+            exit 1
+          fi
+
+          smoke_environment="${RUNNER_TEMP}/cosmos-wheel-smoke"
+          runtime_requirements="${RUNNER_TEMP}/cosmos-runtime-requirements.txt"
+
+          uv export \
+            --locked \
+            --no-dev \
+            --no-emit-project \
+            --output-file "${runtime_requirements}"
+
+          uv venv "${smoke_environment}" --python "3.12"
+
+          uv pip install \
+            --python "${smoke_environment}/bin/python" \
+            --require-hashes \
+            --requirements "${runtime_requirements}"
+
+          uv pip install \
+            --python "${smoke_environment}/bin/python" \
+            --no-deps \
+            --no-index \
+            --strict \
+            "${wheel_paths[0]}"
+
+          (
+            cd "${RUNNER_TEMP}"
+            PYTHONNOUSERSITE=1 "${smoke_environment}/bin/python" - <<'PY'
+          import os
+          import sys
+          from importlib.metadata import version
+          from pathlib import Path
+
+          import cosmos
+          import cosmos.sdk.video as sdk_video
+          from cosmos.preview.contracts import PreviewRect
+          from cosmos.sdk import VideoFrameTimeline, probe_video_timeline
+          from typus import BBoxXYWHNorm
+
+          package_path = Path(cosmos.__file__).resolve()
+          environment_root = Path(sys.prefix).resolve()
+          assert package_path.is_relative_to(environment_root), (
+              package_path,
+              environment_root,
+          )
+          assert version("polli-cosmos") == os.environ["EXPECTED_VERSION"]
+
+          expected_video_exports = {
+              "CosmosVideoError",
+              "RgbFrame",
+              "VideoDecodeError",
+              "VideoFrameTimeline",
+              "VideoProbe",
+              "VideoProbeError",
+              "extract_frames_at_indices",
+              "extract_frames_at_times",
+              "probe_video",
+              "probe_video_timeline",
+          }
+          assert expected_video_exports <= set(sdk_video.__all__)
+          assert sdk_video.VideoFrameTimeline is VideoFrameTimeline
+          assert sdk_video.probe_video_timeline is probe_video_timeline
+
+          timeline = VideoFrameTimeline(
+              source_path=Path("clip.mp4"),
+              time_base_numerator=1,
+              time_base_denominator=90_000,
+              pts_ticks=(0, 3_003),
+          )
+          assert timeline.pts_ticks == (0, 3_003)
+
+          rect = PreviewRect(
+              x_px=25,
+              y_px=25,
+              w_px=50,
+              h_px=50,
+              x_norm=0.25,
+              y_norm=0.25,
+              w_norm=0.5,
+              h_norm=0.5,
+          )
+          assert tuple(PreviewRect.model_fields) == (
+              "x_px",
+              "y_px",
+              "w_px",
+              "h_px",
+              "x_norm",
+              "y_norm",
+              "w_norm",
+              "h_norm",
+          )
+          assert "typus_bbox" not in rect.model_dump()
+          assert isinstance(rect.typus_bbox, BBoxXYWHNorm)
+
+          print(f"installed polli-cosmos {version('polli-cosmos')} from {package_path}")
+          PY
+          )
+
       - name: Publish to TestPyPI
         if: startsWith(github.ref, 'refs/tags/v')
-        continue-on-error: true  # do not block PyPI publish if TestPyPI creds/env unavailable
+        continue-on-error: true
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_KEY }}
         run: uv run twine upload -r testpypi dist/*.whl
+
       - name: Publish to PyPI
-        if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'polli-labs/cosmos'
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_KEY }}
         run: uv run twine upload dist/*.whl
+
       - name: Upload wheel as GitHub release asset
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           files: dist/*.whl
-
-  deploy-docs:
-    name: Deploy Docs to VPS
-    runs-on: ubuntu-latest
-    needs: build-and-publish
-    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
-    concurrency:
-      group: docs-deploy-cosmos
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with: { python-version: '3.12' }
-      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          version: "0.11.20"
-          enable-cache: false
-      - name: Cache uv package cache
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-3.12-docs-${{ hashFiles('pyproject.toml', 'uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-3.12-docs-
-            ${{ runner.os }}-uv-3.12-
-      - run: uv sync --extra docs --locked
-      - run: uv run mkdocs build --strict
-      - uses: webfactory/ssh-agent@e83874834305fe9a4a2997156cb26c5de65a8555 # v0.10.0
-        with:
-          ssh-private-key: ${{ secrets.POLLISERVE0_SSH_PRIVATE_KEY }}
-      - name: Check SSH connectivity
-        run: |
-          echo "Checking SSH connectivity to docs host..."
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 \
-            ${{ secrets.POLLISERVE0_SSH_USER }}@${{ secrets.POLLISERVE0_SSH_PUBLIC_HOST }} echo ok
-      - run: |
-          rsync -avz --delete \
-            -e "ssh -o StrictHostKeyChecking=no" \
-            site/ ${{ secrets.POLLISERVE0_SSH_USER }}@${{ secrets.POLLISERVE0_SSH_PUBLIC_HOST }}:/var/www/docs.polli.ai/html/cosmos/

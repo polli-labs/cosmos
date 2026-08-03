@@ -73,6 +73,13 @@ def run_square_crop(
     bitexact: bool = False,
 ) -> CropRunResult:
     """Run or return ffmpeg args for a single square crop job."""
+    if spec.size <= 0:
+        raise ValueError(f"Invalid square crop: size must be > 0 (got {spec.size}).")
+    if not input_video.exists():
+        raise FileNotFoundError(f"Input video does not exist: {input_video}")
+    if not input_video.is_file():
+        raise ValueError(f"Input video must be a regular file: {input_video}")
+
     if encoder_override is not None:
         encoder, attempted = encoder_override, encoder_override
     elif dry_run:

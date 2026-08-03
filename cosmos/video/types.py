@@ -20,6 +20,16 @@ class VideoProbe:
 
 
 @dataclass(frozen=True, slots=True)
+class VideoFrameTimeline:
+    """Exact decoded-frame identities in the video stream's integer time base."""
+
+    source_path: Path
+    time_base_numerator: int
+    time_base_denominator: int
+    pts_ticks: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class RgbFrame:
     """A decoded RGB frame payload with source/request metadata."""
 

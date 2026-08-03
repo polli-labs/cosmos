@@ -1,13 +1,16 @@
 # Crop Run CLI Reference
 
 Top-level command
-- `cosmos crop run` — interactive or non-interactive crop execution.
+- `cosmos crop run` — crop one or more MP4 inputs.
 
 Options
 - `--input PATH` — one or more MP4 files (repeatable).
 - `--out-dir PATH` — output directory.
 - `--jobs-file PATH` — JSON jobs file (targets/offsets/trims).
-- `--dry-run` — do not execute ffmpeg; show planned commands.
+- `--dry-run` — validate inputs/jobs and declare crop output paths without
+  executing ffmpeg or creating placeholder MP4 files. JSON stdout exposes
+  `run_artifact`, `dry_run_plan`, and typed `output_declarations`; the plan
+  artifact is `cosmos_crop_dry_run.json`.
 - `--yes` — non‑interactive.
 - `--prefer-hevc-hw` — macOS only: prefer `hevc_videotoolbox` when available.
 
@@ -34,5 +37,11 @@ Jobs file fields
 
 Notes
 - Multiple jobs/targets are all applied per input; outputs are named with job and size markers for traceability.
-- Provenance: each output gets `.cosmos_view.v1.json` with crop offsets/centers, trim info, video width/height/duration/fps, and stable `view_id`.
+- Provenance: real runs write `cosmos_crop_run.v1.json` and one
+  `.cosmos_view.v1.json` per output with crop geometry, trim info, video
+  metadata, source/output sha256 values, and stable `view_id`.
+- Dry-runs write `cosmos_crop_run.v1.json` and `cosmos_crop_dry_run.json`; they
+  do not write media outputs or per-output view sidecars.
 - Platform-specific encoder behavior and limitations are documented in `docs/encoder-behavior.md`.
+- The dry-run plan contract is documented in
+  [Agent-Native Dry-Run Contract](dry-run-contract.md).

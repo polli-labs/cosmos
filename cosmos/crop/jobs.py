@@ -21,8 +21,13 @@ def _check_offset(val: Any | None) -> float | None:
 def _parse_targets(obj: dict[str, Any]) -> list[int]:
     targets = obj.get("targets", obj.get("size", 1080))
     if isinstance(targets, int):
-        return [targets]
-    return [int(t) for t in targets]
+        parsed = [targets]
+    else:
+        parsed = [int(t) for t in targets]
+    for target in parsed:
+        if target <= 0:
+            raise ValueError(f"square target size must be positive (got {target})")
+    return parsed
 
 
 def _parse_trim(obj: dict[str, Any]) -> tuple[float | None, float | None]:

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+- Preserve the resolver/error/timeout behavior shipped in public 0.8 within the private
+  source of truth, and extend `COSMOS_VIDEO_FFMPEG_TIMEOUT` to exact decoded-frame timeline
+  probes without changing the 0.9.0 package metadata.
+
+## 0.9.0 — Exact frame identity + canonical Typus geometry (2026-08-03)
+
+- Add a dependency-light Typus 0.8 canonical bbox view to `PreviewRect` while preserving its
+  eight-field schema-v1 wire contract and ffmpeg-derived pixel authority; unrepresentable lossy
+  normalized rectangles return `None` without fabricated positive extent.
+- Make direct preview-contract imports order-independent while preserving the existing public
+  `cosmos.preview` re-export names.
+- Add `probe_video_timeline()` and immutable `VideoFrameTimeline` SDK contracts for exact
+  stream time-base integers and one strictly increasing literal frame `pts` tick per decoded
+  frame, without rounded-float, packet-order, nominal-FPS, or estimated-timestamp identity
+  approximations.
+- Add dry-run v1 plan artifacts and JSON output declarations across `process`, `ingest run`,
+  `crop run`, and `optimize run`, with argv-array command entries for executable plans.
+- Stop creating placeholder MP4 outputs during crop dry-runs.
+- Retire the hidden `cosmos pipeline` alias in favor of `cosmos process`.
+
 ## 0.8.0 — Video substrate + supply-chain-hardened release surface (2026-05-06)
 
 - Add `cosmos.video` and `cosmos.sdk.video` typed video probe/frame extraction helpers backed

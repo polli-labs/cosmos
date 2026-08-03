@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
 from dataclasses import dataclass, replace
@@ -9,6 +8,13 @@ from typing import Literal, cast
 
 from cosmos.ffmpeg.args import build_optimize_remux_args, build_optimize_transcode_args
 from cosmos.ffmpeg.detect import choose_encoder_for_video, ensure_ffmpeg_available
+from cosmos.sdk.dry_run import (
+    build_dry_run_plan,
+    command_declaration,
+    input_declaration,
+    output_declaration,
+    write_dry_run_plan,
+)
 from cosmos.sdk.provenance import (
     emit_optimize_run,
     emit_optimized_artifact,
@@ -141,6 +147,9 @@ def _plan_input(
     if options.encoder is not None:
         selected_encoder = options.encoder
         attempted_encoder = options.encoder
+    elif options.dry_run:
+        selected_encoder = "libx264"
+        attempted_encoder = "libx264"
     else:
         selected_encoder, attempted_encoder = choose_encoder_for_video(src)
     cmd = _build_transcode_command(
@@ -254,7 +263,7 @@ def optimize(
         }
         for src in input_videos
     ]
-    optimize_run_id, _run_path = emit_optimize_run(
+    optimize_run_id, run_path = emit_optimize_run(
         output_dir=out_dir,
         options=run_options,
         inputs=input_summary,
@@ -262,6 +271,11 @@ def optimize(
 
     outputs: list[Path] = []
     plan_entries: list[dict[str, object]] = []
+    dry_run_inputs = [
+        input_declaration(src, kind="video", stage="optimize") for src in input_videos
+    ]
+    dry_run_outputs: list[dict[str, object]] = []
+    dry_run_commands: list[dict[str, object]] = []
     for src in input_videos:
         out_path, resolved_mode, cmd, encode_info, attempted_encoder = _plan_input(
             src,
@@ -282,6 +296,23 @@ def optimize(
         clean_transform = {k: v for k, v in transform.items() if v is not None}
 
         if options.dry_run:
+            dry_run_outputs.append(
+                output_declaration(
+                    out_path,
+                    kind="video",
+                    stage="optimize",
+                    exists=out_path.exists(),
+                )
+            )
+            dry_run_commands.append(
+                command_declaration(
+                    stage="optimize",
+                    name=src.name,
+                    argv=cmd,
+                    inputs=[src],
+                    outputs=[out_path],
+                )
+            )
             plan_entries.append(
                 {
                     "input": str(src),
@@ -316,6 +347,14 @@ def optimize(
 
     if options.dry_run:
         plan_path = out_dir / "cosmos_optimize_dry_run.json"
-        plan_path.write_text(json.dumps({"planned": plan_entries}, indent=2))
+        plan = build_dry_run_plan(
+            command="cosmos optimize run",
+            inputs=dry_run_inputs,
+            outputs=dry_run_outputs,
+            commands=dry_run_commands,
+            metadata_writes=[run_path, plan_path],
+            extra={"planned": plan_entries},
+        )
+        write_dry_run_plan(plan_path, plan)
 
     return outputs

@@ -66,6 +66,10 @@ def fail(message: str, *, code: ExitCode) -> None:
 
 
 def raise_mapped_exit(exc: Exception) -> None:
+    from cosmos.sdk.ingest import IngestSystemPreflightError
+
+    if isinstance(exc, IngestSystemPreflightError):
+        fail(str(exc), code=ExitCode.FFMPEG_PRECHECK_ERROR)
     if isinstance(exc, FileNotFoundError | ValueError):
         fail(str(exc), code=ExitCode.INPUT_VALIDATION_ERROR)
     if isinstance(exc, RuntimeError):

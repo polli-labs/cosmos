@@ -8,7 +8,7 @@ Detailed module map for the current `cosmos` repo state.
   - public exports for video probe/decode, ingest/crop/preview/optimize, and determinism
     profile helpers.
 - `cosmos/sdk/video.py`
-  - stable SDK re-export surface for typed video probe/decode helpers.
+  - stable SDK re-export surface for typed video metadata/timeline/decode helpers.
 - `cosmos/sdk/ingest.py`
   - ingest orchestrator and `IngestOptions`. Uses adapter contract for source-layout-specific logic.
 - `cosmos/sdk/crop.py`
@@ -25,9 +25,13 @@ Detailed module map for the current `cosmos` repo state.
   - lineage index builder and graph traversal (DAG over provenance sidecars).
 
 - `cosmos/video/types.py`
-  - `VideoProbe`, `RgbFrame`, and video-specific error classes.
+  - `VideoProbe`, `VideoFrameTimeline`, `RgbFrame`, and video-specific error classes.
 - `cosmos/video/probe.py`
   - ffprobe JSON-backed first-video-stream metadata probing.
+- `cosmos/video/timeline.py`
+  - exact first-video-stream time-base parsing and strictly increasing decoded-frame PTS
+    identity extraction through the shared ffprobe resolver and optional video subprocess
+    timeout.
 - `cosmos/video/decode.py`
   - public video decode validation, backend selection, and `RgbFrame` assembly.
 - `cosmos/video/backends/`
@@ -59,11 +63,15 @@ Detailed module map for the current `cosmos` repo state.
   - curated-view-spec parser and source clip mapping.
 
 - `cosmos/preview/contracts.py`
-  - preview run/plan Pydantic contracts for bundle artifacts.
+  - preview run/plan Pydantic contracts for bundle artifacts; `PreviewRect`
+    preserves its eight-field v1 model and offers a non-serialized, optional
+    Typus `BBoxXYWHNorm` view.
 - `cosmos/preview/selectors.py`
   - frame selector parsing and selector-to-time resolution.
 - `cosmos/preview/planner.py`
-  - deterministic rect/square preview geometry and warnings.
+  - deterministic rect/square preview geometry and warnings; clamp and
+    forced-even ffmpeg pixel math remains the authority behind normalized and
+    Typus projections.
 - `cosmos/preview/frames.py`
   - ffmpeg frame extraction builder/executor.
 - `cosmos/preview/render.py`
@@ -81,7 +89,7 @@ Detailed module map for the current `cosmos` repo state.
   - encoder quality preset tables.
 
 - `cosmos/cli/cosmos_app.py`
-  - root CLI app (`process`, `ingest`, `crop`, `optimize`, `provenance`, `lineage`) plus hidden deprecated `pipeline` alias.
+  - root CLI app (`process`, `ingest`, `crop`, `optimize`, `provenance`, `lineage`).
 - `cosmos/cli/ingest_cli.py`
   - ingest run command + non-interactive flags.
 - `cosmos/cli/crop_cli.py`
@@ -111,13 +119,18 @@ Join key stability requirement:
 
 ## Runtime behavior highlights
 
-- Root workflow command is `cosmos process`; hidden `cosmos pipeline` exists only for backward compatibility.
+- Root workflow command is `cosmos process`; legacy `cosmos pipeline` is retired.
 - Rect crop now supports normalized and pixel coordinate specs.
 - Crop CLI supports `--crop-mode rect` and curated views ingestion.
 - Crop preview now supports contact sheets + stacked overlays with frame selectors and a GUI-ready preview-plan contract.
-- Video probe/decode now has a typed SDK substrate (`cosmos.sdk.video`) for downstream
-  consumers that need metadata and RGB frames without depending on Decord or image-array
-  return types.
+- Video probe/timeline/decode now has a typed SDK substrate (`cosmos.sdk.video`) for
+  downstream consumers that need metadata, exact decoded-frame PTS identities, and RGB
+  frames without depending on Decord or image-array return types.
+- `probe_video_timeline()` consumes ffprobe `-show_frames` output in emitted decoded-frame
+  order, accepts only literal frame `pts`, and rejects missing, estimated-only,
+  non-integral, duplicate, or nonmonotonic identity sequences.
+- Metadata probes, exact timeline probes, packet timestamp lookups, and FFmpeg RGB extraction
+  share the call-time `COSMOS_VIDEO_FFMPEG_TIMEOUT` contract and stable typed error wrapping.
 - The default video decode backend remains FFmpeg CLI for stable system-FFmpeg bytes.
   Optional PyAV is lazy-imported behind `polli-cosmos[video-av]` and selected only via
   `COSMOS_VIDEO_BACKEND=pyav`, or by platform-aware `auto` on macOS with FFmpeg CLI

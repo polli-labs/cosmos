@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
 from cosmos.crop.rectcrop import RectCropSpec, build_rect_crop_filter, run_rect_crop
 from cosmos.crop.squarecrop import SquareCropSpec, plan_crops, run_square_crop
+from cosmos.sdk.dry_run import (
+    build_dry_run_plan,
+    command_declaration,
+    input_declaration,
+    output_declaration,
+    write_dry_run_plan,
+)
 from cosmos.sdk.provenance import emit_crop_run, emit_crop_view
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -47,12 +52,16 @@ def _normalize_offset(val: float | None) -> float | None:
 
 
 def _validate_job(job: CropJob) -> None:
+    if job.size <= 0:
+        raise ValueError(f"Invalid square crop: size must be > 0 (got {job.size}).")
     if (job.offset_x is not None or job.offset_y is not None) and (
         job.center_x is not None or job.center_y is not None
     ):
         raise ValueError(
             "Provide either offsets or centers, not both. Offsets are margin-relative in [-1,1]."
         )
+    _normalize_offset(job.offset_x)
+    _normalize_offset(job.offset_y)
     if job.start is not None and job.end is not None and job.end <= job.start:
         raise ValueError("Invalid trim window: trim_end must be greater than trim_start.")
 
@@ -70,6 +79,35 @@ def _validate_rect_job(job: RectCropJob) -> None:
             raise ValueError("Invalid rect crop: y0 + h must be <= 1.0 in normalized mode.")
     if job.start is not None and job.end is not None and job.end <= job.start:
         raise ValueError("Invalid trim window: trim_end must be greater than trim_start.")
+
+
+def _validate_input_videos(input_videos: list[Path]) -> None:
+    if not input_videos:
+        raise ValueError("At least one input video is required.")
+    for src in input_videos:
+        if not src.exists():
+            raise FileNotFoundError(f"Input video does not exist: {src}")
+        if not src.is_file():
+            raise ValueError(f"Input video must be a regular file: {src}")
+
+
+def validate_jobs(jobs: Sequence[object]) -> None:
+    """Validate crop jobs without requiring source videos to exist."""
+    if not jobs:
+        _validate_job(CropJob())
+        return
+
+    if all(isinstance(j, RectCropJob) for j in jobs):
+        for job in cast(list[RectCropJob], jobs):
+            _validate_rect_job(job)
+        return
+
+    if all(isinstance(j, CropJob) for j in jobs):
+        for job in cast(list[CropJob], jobs):
+            _validate_job(job)
+        return
+
+    raise ValueError("Jobs must be all CropJob or all RectCropJob.")
 
 
 def crop(
@@ -90,7 +128,6 @@ def crop(
     """
     from cosmos.sdk.profiles import resolve_profile
 
-    out_dir.mkdir(parents=True, exist_ok=True)
     opts = ffmpeg_opts or {}
     dry_run = bool(opts.get("dry_run", False))
     prefer_hevc_hw = bool(opts.get("prefer_hevc_hw", False))
@@ -101,7 +138,11 @@ def crop(
     threads = profile.threads if profile else None
     bitexact = profile.bitexact if profile else False
 
+    _validate_input_videos(input_videos)
+
     if not jobs:
+        validate_jobs([])
+        out_dir.mkdir(parents=True, exist_ok=True)
         return _crop_square(
             input_videos,
             [],
@@ -116,6 +157,8 @@ def crop(
     # Detect crop mode from job types and enforce homogeneous lists.
     if all(isinstance(j, RectCropJob) for j in jobs):
         rect_jobs = [cast(RectCropJob, j) for j in jobs]
+        validate_jobs(rect_jobs)
+        out_dir.mkdir(parents=True, exist_ok=True)
         return _crop_rect(
             input_videos,
             rect_jobs,
@@ -129,6 +172,8 @@ def crop(
 
     if all(isinstance(j, CropJob) for j in jobs):
         square_jobs = [cast(CropJob, j) for j in jobs]
+        validate_jobs(square_jobs)
+        out_dir.mkdir(parents=True, exist_ok=True)
         return _crop_square(
             input_videos,
             square_jobs,
@@ -154,6 +199,8 @@ def _crop_rect(
     threads: int | None = None,
     bitexact: bool = False,
 ) -> list[Path]:
+    for job in jobs:
+        _validate_rect_job(job)
     jobs_summary = [
         {
             "crop_mode": "rect",
@@ -168,8 +215,11 @@ def _crop_rect(
         }
         for j in jobs
     ]
-    crop_run_id, _run_path = emit_crop_run(output_dir=out_dir, jobs=jobs_summary)
+    crop_run_id, run_path = emit_crop_run(output_dir=out_dir, jobs=jobs_summary)
     results: list[Path] = []
+    dry_run_inputs = [input_declaration(src, kind="video", stage="crop") for src in input_videos]
+    dry_run_outputs: list[dict[str, object]] = []
+    dry_run_commands: list[dict[str, object]] = []
     for vi, src in enumerate(input_videos):
         for ji, job in enumerate(jobs):
             _validate_rect_job(job)
@@ -195,56 +245,78 @@ def _crop_rect(
                 bitexact=bitexact,
             )
             if dry_run:
-                out.write_bytes(b"")
-            else:
-                try:
-                    # Build provenance with both normalized and pixel coords
-                    from cosmos.ffmpeg.detect import _probe_dimensions
-
-                    probed_w, probed_h = _probe_dimensions(src)
-                    source_w = probed_w or 0
-                    source_h = probed_h or 0
-                    crop_filter = build_rect_crop_filter(spec, source_w, source_h)
-                    filter_parts = crop_filter.replace("crop=", "").split(":")
-                    px_w, px_h, px_x, px_y = (int(p) for p in filter_parts)
-                    crop_spec: dict[str, Any] = {
-                        "crop_mode": "rect",
-                        "x0_norm": job.x0 if job.normalized else None,
-                        "y0_norm": job.y0 if job.normalized else None,
-                        "w_norm": job.w if job.normalized else None,
-                        "h_norm": job.h if job.normalized else None,
-                        "x_px": px_x,
-                        "y_px": px_y,
-                        "w_px": px_w,
-                        "h_px": px_h,
-                        "source_w_px": source_w,
-                        "source_h_px": source_h,
-                        "view_id": job.view_id,
-                        "annotations": job.annotations if job.annotations else None,
-                        "trim_start_sec": spec.start,
-                        "trim_end_sec": spec.end,
-                        "trim_unit": "time"
-                        if spec.start is not None or spec.end is not None
-                        else None,
-                    }
-                    clean_crop_spec = {k: v for k, v in crop_spec.items() if v is not None}
-                    emit_crop_view(
-                        crop_run_id=crop_run_id,
-                        source_path=src,
-                        output_path=out,
-                        crop_spec=clean_crop_spec,
-                        encode_info={
-                            "codec": result.encoder_used,
-                            "hardware_attempted": result.encoder_attempted,
-                            "hardware_used": None
-                            if result.encoder_used == "libx264"
-                            else result.encoder_used,
-                        },
-                        job_ref=job.view_id or f"rect{ji}",
+                dry_run_outputs.append(
+                    output_declaration(
+                        out,
+                        kind="video",
+                        stage="crop",
+                        exists=out.exists(),
                     )
-                except Exception as e:
-                    logger.debug("crop provenance emission failed: %s", e)
+                )
+                dry_run_commands.append(
+                    command_declaration(
+                        stage="crop",
+                        name=job.view_id or f"rect{ji}",
+                        argv=result.args,
+                        inputs=[src],
+                        outputs=[out],
+                    )
+                )
+            else:
+                # Build provenance with both normalized and pixel coords.
+                from cosmos.ffmpeg.detect import _probe_dimensions
+
+                probed_w, probed_h = _probe_dimensions(src)
+                source_w = probed_w or 0
+                source_h = probed_h or 0
+                crop_filter = build_rect_crop_filter(spec, source_w, source_h)
+                filter_parts = crop_filter.replace("crop=", "").split(":")
+                px_w, px_h, px_x, px_y = (int(p) for p in filter_parts)
+                crop_spec: dict[str, Any] = {
+                    "crop_mode": "rect",
+                    "x0_norm": job.x0 if job.normalized else None,
+                    "y0_norm": job.y0 if job.normalized else None,
+                    "w_norm": job.w if job.normalized else None,
+                    "h_norm": job.h if job.normalized else None,
+                    "x_px": px_x,
+                    "y_px": px_y,
+                    "w_px": px_w,
+                    "h_px": px_h,
+                    "source_w_px": source_w,
+                    "source_h_px": source_h,
+                    "view_id": job.view_id,
+                    "annotations": job.annotations if job.annotations else None,
+                    "trim_start_sec": spec.start,
+                    "trim_end_sec": spec.end,
+                    "trim_unit": "time" if spec.start is not None or spec.end is not None else None,
+                }
+                clean_crop_spec = {k: v for k, v in crop_spec.items() if v is not None}
+                emit_crop_view(
+                    crop_run_id=crop_run_id,
+                    source_path=src,
+                    output_path=out,
+                    crop_spec=clean_crop_spec,
+                    encode_info={
+                        "codec": result.encoder_used,
+                        "hardware_attempted": result.encoder_attempted,
+                        "hardware_used": None
+                        if result.encoder_used == "libx264"
+                        else result.encoder_used,
+                    },
+                    job_ref=job.view_id or f"rect{ji}",
+                )
             results.append(out)
+    if dry_run:
+        plan_path = out_dir / "cosmos_crop_dry_run.json"
+        plan = build_dry_run_plan(
+            command="cosmos crop run",
+            inputs=dry_run_inputs,
+            outputs=dry_run_outputs,
+            commands=dry_run_commands,
+            metadata_writes=[run_path, plan_path],
+            extra={"mode": "rect"},
+        )
+        write_dry_run_plan(plan_path, plan)
     return results
 
 
@@ -259,6 +331,9 @@ def _crop_square(
     threads: int | None = None,
     bitexact: bool = False,
 ) -> list[Path]:
+    jobs_to_run = jobs if jobs else [CropJob()]
+    for job in jobs_to_run:
+        _validate_job(job)
     jobs_summary = [
         {
             "center_x": j.center_x,
@@ -271,12 +346,13 @@ def _crop_square(
         }
         for j in (jobs or [])
     ]
-    crop_run_id, _run_path = emit_crop_run(output_dir=out_dir, jobs=jobs_summary)
+    crop_run_id, run_path = emit_crop_run(output_dir=out_dir, jobs=jobs_summary)
     results: list[Path] = []
-    jobs_to_run = jobs if jobs else [CropJob()]
+    dry_run_inputs = [input_declaration(src, kind="video", stage="crop") for src in input_videos]
+    dry_run_outputs: list[dict[str, object]] = []
+    dry_run_commands: list[dict[str, object]] = []
     for vi, src in enumerate(input_videos):
         for ji, job in enumerate(jobs_to_run):
-            _validate_job(job)
             spec = SquareCropSpec(
                 size=job.size,
                 center_x=job.center_x,
@@ -300,44 +376,68 @@ def _crop_square(
                     bitexact=bitexact,
                 )
                 if dry_run:
-                    out.write_bytes(b"")
-                else:
-                    try:
-                        crop_spec: dict[str, Any] = {
-                            "size": spec.size,
-                            "size_px": spec.size,
-                            "target_size_px": spec.size,
-                            "center_x": spec.center_x,
-                            "center_y": spec.center_y,
-                            "offset_x": spec.offset_x,
-                            "offset_y": spec.offset_y,
-                            "start": spec.start if spec.start is not None else None,
-                            "end": spec.end if spec.end is not None else None,
-                            "trim_start_sec": spec.start if spec.start is not None else None,
-                            "trim_end_sec": spec.end if spec.end is not None else None,
-                            "trim_unit": "time"
-                            if spec.start is not None or spec.end is not None
-                            else None,
-                            "offset_unit": "margin_relative"
-                            if spec.offset_x is not None or spec.offset_y is not None
-                            else None,
-                        }
-                        clean_crop_spec = {k: v for k, v in crop_spec.items() if v is not None}
-                        emit_crop_view(
-                            crop_run_id=crop_run_id,
-                            source_path=src,
-                            output_path=out,
-                            crop_spec=clean_crop_spec,
-                            encode_info={
-                                "codec": result.encoder_used,
-                                "hardware_attempted": result.encoder_attempted,
-                                "hardware_used": None
-                                if result.encoder_used == "libx264"
-                                else result.encoder_used,
-                            },
-                            job_ref=f"job{ji}",
+                    dry_run_outputs.append(
+                        output_declaration(
+                            out,
+                            kind="video",
+                            stage="crop",
+                            exists=out.exists(),
                         )
-                    except Exception as e:
-                        logger.debug("crop provenance emission failed: %s", e)
+                    )
+                    dry_run_commands.append(
+                        command_declaration(
+                            stage="crop",
+                            name=f"job{ji}",
+                            argv=result.args,
+                            inputs=[src],
+                            outputs=[out],
+                        )
+                    )
+                else:
+                    crop_spec: dict[str, Any] = {
+                        "size": spec.size,
+                        "size_px": spec.size,
+                        "target_size_px": spec.size,
+                        "center_x": spec.center_x,
+                        "center_y": spec.center_y,
+                        "offset_x": spec.offset_x,
+                        "offset_y": spec.offset_y,
+                        "start": spec.start if spec.start is not None else None,
+                        "end": spec.end if spec.end is not None else None,
+                        "trim_start_sec": spec.start if spec.start is not None else None,
+                        "trim_end_sec": spec.end if spec.end is not None else None,
+                        "trim_unit": "time"
+                        if spec.start is not None or spec.end is not None
+                        else None,
+                        "offset_unit": "margin_relative"
+                        if spec.offset_x is not None or spec.offset_y is not None
+                        else None,
+                    }
+                    clean_crop_spec = {k: v for k, v in crop_spec.items() if v is not None}
+                    emit_crop_view(
+                        crop_run_id=crop_run_id,
+                        source_path=src,
+                        output_path=out,
+                        crop_spec=clean_crop_spec,
+                        encode_info={
+                            "codec": result.encoder_used,
+                            "hardware_attempted": result.encoder_attempted,
+                            "hardware_used": None
+                            if result.encoder_used == "libx264"
+                            else result.encoder_used,
+                        },
+                        job_ref=f"job{ji}",
+                    )
                 results.append(out)
+    if dry_run:
+        plan_path = out_dir / "cosmos_crop_dry_run.json"
+        plan = build_dry_run_plan(
+            command="cosmos crop run",
+            inputs=dry_run_inputs,
+            outputs=dry_run_outputs,
+            commands=dry_run_commands,
+            metadata_writes=[run_path, plan_path],
+            extra={"mode": "square"},
+        )
+        write_dry_run_plan(plan_path, plan)
     return results

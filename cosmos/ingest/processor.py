@@ -137,6 +137,88 @@ class VideoProcessor:
             encoder.value, mode=mode, crf=self.options.crf, threads=thread_count
         )
 
+    def _thread_count(self) -> int | None:
+        import multiprocessing
+
+        total_threads = multiprocessing.cpu_count()
+        if self.options.quality_mode == ProcessingMode.MINIMAL:
+            return 1
+        if self.options.quality_mode == ProcessingMode.LOW_MEMORY or self.options.low_memory:
+            return max(1, total_threads // 2)
+        return None
+
+    def build_command_for_spec(  # noqa: C901
+        self,
+        clip_result: ClipValidationResult,
+        spec: FfmpegInputSpec,
+        *,
+        encoder: EncoderType | None = None,
+    ) -> tuple[Path, list[str]]:
+        """Build the ffmpeg argv for an adapter-provided spec without running it."""
+        from typing import Any, cast
+
+        opt = cast(Any, self.options)
+        selected_encoder = encoder or (
+            self._available_encoders[0] if self._available_encoders else EncoderType.SOFTWARE_X264
+        )
+        output_stem = spec.output_stem or clip_result.clip.name
+        output_path = self.output_dir / f"{output_stem}.mp4"
+        thread_count = self._thread_count()
+
+        cmd = [resolve_ffmpeg_path(), "-y"]
+        # best-effort decode acceleration
+        if getattr(opt, "decode", None) and str(opt.decode).lower() == "hw":
+            try:
+                import platform
+
+                sysname = platform.system().lower()
+                if sysname == "darwin":
+                    cmd += ["-hwaccel", "videotoolbox"]
+                elif sysname == "linux":
+                    cmd += ["-hwaccel", "cuda"]
+                elif sysname == "windows":
+                    cmd += ["-hwaccel", "dxva2"]
+            except Exception as e:
+                logging.getLogger(__name__).debug("decode accel setup skipped: %s", e)
+
+        ws = getattr(opt, "window_seconds", None)
+        if ws and ws > 0:
+            cmd += ["-to", f"{ws}"]
+
+        # Adapter-provided input args
+        cmd.extend(spec.input_args)
+
+        # Adapter-provided filter graph (optional)
+        if spec.filter_complex is not None:
+            cmd += ["-filter_complex", spec.filter_complex, "-map", "[out]"]
+
+        memory_opts: list[str] = []
+        if self.options.low_memory or self.options.quality_mode in [
+            ProcessingMode.LOW_MEMORY,
+            ProcessingMode.MINIMAL,
+        ]:
+            memory_opts = [
+                "-max_muxing_queue_size",
+                "1024",
+                "-tile-columns",
+                "0",
+                "-frame-parallel",
+                "0",
+            ]
+        ft = getattr(opt, "filter_threads", None)
+        fct = getattr(opt, "filter_complex_threads", None)
+        if ft:
+            cmd += ["-filter_threads", str(ft)]
+        if fct:
+            cmd += ["-filter_complex_threads", str(fct)]
+        cmd.extend(self._get_encoder_settings(selected_encoder, thread_count))
+        cmd.extend(memory_opts)
+        if getattr(opt, "bitexact", False):
+            cmd += ["-bitexact", "-fflags", "+bitexact"]
+        cmd.extend(spec.extra_output_args)
+        cmd.append(str(output_path))
+        return output_path, cmd
+
     def _build_filter_complex(self, crop_overlap: int = 32) -> str:
         tile_processing = (
             f"[0:v:0]crop=iw-{crop_overlap}:ih-{crop_overlap}:0:0[tl];"
@@ -303,76 +385,13 @@ class VideoProcessor:
     ) -> ProcessingResult:
         """Execute ffmpeg using an adapter-provided ``FfmpegInputSpec``."""
         try:
-            from typing import Any, cast
-
-            opt = cast(Any, self.options)
-            output_stem = spec.output_stem or clip_result.clip.name
-            output_path = self.output_dir / f"{output_stem}.mp4"
-
-            import multiprocessing
-
-            total_threads = multiprocessing.cpu_count()
-            if self.options.quality_mode == ProcessingMode.MINIMAL:
-                thread_count = 1
-            elif self.options.quality_mode == ProcessingMode.LOW_MEMORY or self.options.low_memory:
-                thread_count = max(1, total_threads // 2)
-            else:
-                thread_count = None
-
             for encoder in self._available_encoders:
                 try:
-                    cmd = [resolve_ffmpeg_path(), "-y"]
-                    # best-effort decode acceleration
-                    if getattr(opt, "decode", None) and str(opt.decode).lower() == "hw":
-                        try:
-                            import platform
-
-                            sysname = platform.system().lower()
-                            if sysname == "darwin":
-                                cmd += ["-hwaccel", "videotoolbox"]
-                            elif sysname == "linux":
-                                cmd += ["-hwaccel", "cuda"]
-                            elif sysname == "windows":
-                                cmd += ["-hwaccel", "dxva2"]
-                        except Exception as e:
-                            logging.getLogger(__name__).debug("decode accel setup skipped: %s", e)
-
-                    ws = getattr(opt, "window_seconds", None)
-                    if ws and ws > 0:
-                        cmd += ["-to", f"{ws}"]
-
-                    # Adapter-provided input args
-                    cmd.extend(spec.input_args)
-
-                    # Adapter-provided filter graph (optional)
-                    if spec.filter_complex is not None:
-                        cmd += ["-filter_complex", spec.filter_complex, "-map", "[out]"]
-
-                    memory_opts: list[str] = []
-                    if self.options.low_memory or self.options.quality_mode in [
-                        ProcessingMode.LOW_MEMORY,
-                        ProcessingMode.MINIMAL,
-                    ]:
-                        memory_opts = [
-                            "-max_muxing_queue_size",
-                            "1024",
-                            "-tile-columns",
-                            "0",
-                            "-frame-parallel",
-                            "0",
-                        ]
-                    ft = getattr(opt, "filter_threads", None)
-                    fct = getattr(opt, "filter_complex_threads", None)
-                    if ft:
-                        cmd += ["-filter_threads", str(ft)]
-                    if fct:
-                        cmd += ["-filter_complex_threads", str(fct)]
-                    cmd.extend(self._get_encoder_settings(encoder, thread_count))
-                    cmd.extend(memory_opts)
-                    if getattr(opt, "bitexact", False):
-                        cmd += ["-bitexact", "-fflags", "+bitexact"]
-                    cmd.extend(spec.extra_output_args)
-                    cmd.append(str(output_path))
+                    output_path, cmd = self.build_command_for_spec(
+                        clip_result,
+                        spec,
+                        encoder=encoder,
+                    )
 
                     creation_flags = CREATE_NO_WINDOW
 

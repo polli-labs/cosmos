@@ -11,7 +11,7 @@ ffmpeg_missing = shutil.which("ffmpeg") is None
 
 @pytest.mark.skipif(ffmpeg_missing, reason="ffmpeg not available")
 def test_sdk_smoke(tmp_path: Path) -> None:
-    # Create a fake input video path to satisfy placeholder logic
+    # Create a fake input video path to satisfy dry-run path planning.
     src_dir = tmp_path / "in"
     src_dir.mkdir()
     fake = src_dir / "a.mp4"
@@ -21,5 +21,5 @@ def test_sdk_smoke(tmp_path: Path) -> None:
     out = ingest_fn(src_dir, out_dir, manifest=None, options=IngestOptions())
     assert isinstance(out, list)  # noqa: S101
 
-    cropped = crop_fn(out, [CropJob()], tmp_path / "crop", ffmpeg_opts={"dry_run": True})
+    cropped = crop_fn([fake], [CropJob()], tmp_path / "crop", ffmpeg_opts={"dry_run": True})
     assert isinstance(cropped, list)  # noqa: S101

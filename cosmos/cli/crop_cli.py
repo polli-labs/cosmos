@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, cast
 
 import questionary
 import typer
@@ -15,9 +16,16 @@ from cosmos.cli.io import (
     resolve_output_mode,
 )
 from cosmos.sdk.crop import CropJob, RectCropJob, crop
+from cosmos.sdk.dry_run import (
+    build_dry_run_plan,
+    input_declaration,
+    output_declaration,
+    write_dry_run_plan,
+)
 from cosmos.sdk.preview import RenderOptions
 from cosmos.sdk.preview import preview as sdk_preview
 from cosmos.sdk.preview import preview_curated_views as sdk_preview_curated_views
+from cosmos.sdk.provenance import emit_crop_run
 
 app = typer.Typer(help="Post-processing crop (square or rectangular)")
 CropJobs = list[CropJob] | list[RectCropJob]
@@ -63,6 +71,19 @@ PreviewSourceShaOption = Annotated[
         help="Hash source videos into preview plan metadata (slower on large files).",
     ),
 ]
+
+
+def _load_plan_dict(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    return data if isinstance(data, dict) else {}
+
+
+def _dict_items(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        return []
+    return [cast(dict[str, object], item) for item in value if isinstance(item, dict)]
 
 
 def _resolve_crop_mode(raw_mode: str) -> str:
@@ -259,7 +280,7 @@ def run(
     ] = "square",
     # Square mode params
     size: Annotated[
-        int, typer.Option(help="Square target size (pixels) when not using --jobs-file")
+        int, typer.Option(min=1, help="Square target size (pixels) when not using --jobs-file")
     ] = 1080,
     offset_x: Annotated[
         float | None,
@@ -390,16 +411,20 @@ def run(
         return
 
     if output_mode == "json":
-        emit_payload(
-            {
-                "command": "cosmos crop run",
-                "mode": normalized_mode,
-                "dry_run": dry_run,
-                "count": len(results),
-                "outputs": [str(p) for p in results],
-            },
-            mode=output_mode,
-        )
+        payload: dict[str, object] = {
+            "command": "cosmos crop run",
+            "mode": normalized_mode,
+            "dry_run": dry_run,
+            "count": len(results),
+            "outputs": [str(p) for p in results],
+        }
+        if dry_run:
+            payload["run_artifact"] = str(resolved_out_dir / "cosmos_crop_run.v1.json")
+            payload["dry_run_plan"] = str(resolved_out_dir / "cosmos_crop_dry_run.json")
+            payload["output_declarations"] = [
+                output_declaration(p, kind="video", stage="crop") for p in results
+            ]
+        emit_payload(payload, mode=output_mode)
         return
 
     emit_paths(results, mode=output_mode)
@@ -423,7 +448,7 @@ def preview(
         typer.Option("--crop-mode", help="Crop mode for flag-based jobs: square (default) or rect"),
     ] = "square",
     size: Annotated[
-        int, typer.Option(help="Square target size (pixels) when not using --jobs-file")
+        int, typer.Option(min=1, help="Square target size (pixels) when not using --jobs-file")
     ] = 1080,
     offset_x: Annotated[
         float | None,
@@ -666,7 +691,7 @@ def curated_views_preview(
 
 
 @app.command(name="curated-views")
-def curated_views(
+def curated_views(  # noqa: C901
     spec: Annotated[Path, typer.Option("--spec", exists=True, help="Curated views spec JSON")],
     source_root: Annotated[
         Path, typer.Option("--source-root", exists=True, help="Root directory of source clips")
@@ -726,7 +751,34 @@ def curated_views(
         # Group by source and crop each view
         out_dir.mkdir(parents=True, exist_ok=True)
         results: list[Path] = []
+        dry_run_plan_path = out_dir / "cosmos_crop_dry_run.json"
+        dry_run_inputs: list[dict[str, object]] = [
+            input_declaration(source_root, kind="directory", stage="crop")
+        ]
+        dry_run_outputs: list[dict[str, object]] = []
+        dry_run_commands: list[dict[str, object]] = []
+        dry_run_validation: list[dict[str, object]] = []
+        seen_sources: set[str] = set()
+        job_summaries: list[dict[str, object]] = []
         for src, job in pairs:
+            source_key = str(src)
+            if source_key not in seen_sources:
+                seen_sources.add(source_key)
+                dry_run_inputs.append(input_declaration(src, kind="video", stage="crop"))
+            job_summaries.append(
+                {
+                    "crop_mode": "rect",
+                    "x0": job.x0,
+                    "y0": job.y0,
+                    "w": job.w,
+                    "h": job.h,
+                    "normalized": job.normalized,
+                    "start": job.start,
+                    "end": job.end,
+                    "view_id": job.view_id,
+                    "annotations": job.annotations,
+                }
+            )
             out_paths = crop(
                 [src],
                 [job],
@@ -734,20 +786,46 @@ def curated_views(
                 ffmpeg_opts={"dry_run": dry_run, "prefer_hevc_hw": prefer_hevc_hw},
             )
             results.extend(out_paths)
+            if dry_run:
+                child_plan = _load_plan_dict(dry_run_plan_path)
+                dry_run_outputs.extend(_dict_items(child_plan.get("outputs")))
+                dry_run_commands.extend(_dict_items(child_plan.get("commands")))
+                dry_run_validation.extend(_dict_items(child_plan.get("validation")))
+
+        if dry_run:
+            _crop_run_id, run_path = emit_crop_run(output_dir=out_dir, jobs=job_summaries)
+            if not dry_run_outputs:
+                dry_run_outputs = [
+                    output_declaration(p, kind="video", stage="crop", exists=False) for p in results
+                ]
+            aggregate_plan = build_dry_run_plan(
+                command="cosmos crop curated-views",
+                inputs=dry_run_inputs,
+                outputs=dry_run_outputs,
+                commands=dry_run_commands,
+                metadata_writes=[run_path, dry_run_plan_path],
+                validation=dry_run_validation,
+                extra={"mode": "rect", "view_count": len(pairs)},
+            )
+            write_dry_run_plan(dry_run_plan_path, aggregate_plan)
     except Exception as exc:  # noqa: BLE001
         raise_mapped_exit(exc)
         return
 
     if output_mode == "json":
-        emit_payload(
-            {
-                "command": "cosmos crop curated-views",
-                "dry_run": dry_run,
-                "count": len(results),
-                "outputs": [str(p) for p in results],
-            },
-            mode=output_mode,
-        )
+        payload: dict[str, object] = {
+            "command": "cosmos crop curated-views",
+            "dry_run": dry_run,
+            "count": len(results),
+            "outputs": [str(p) for p in results],
+        }
+        if dry_run:
+            payload["run_artifact"] = str(out_dir / "cosmos_crop_run.v1.json")
+            payload["dry_run_plan"] = str(out_dir / "cosmos_crop_dry_run.json")
+            payload["output_declarations"] = [
+                output_declaration(p, kind="video", stage="crop", exists=False) for p in results
+            ]
+        emit_payload(payload, mode=output_mode)
         return
 
     emit_paths(results, mode=output_mode)

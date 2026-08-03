@@ -36,6 +36,7 @@ def test_optimize_dry_run_emits_plan_and_run_artifact(tmp_path: Path) -> None:
     payload = json.loads(plan_path.read_text())
     assert payload["planned"][0]["mode"] == "remux"
     assert payload["planned"][0]["output"] == str(expected_out)
+    assert isinstance(payload["planned"][0]["command"], list)
 
 
 def test_optimize_auto_selects_transcode_with_transform_flags(
@@ -45,7 +46,11 @@ def test_optimize_auto_selects_transcode_with_transform_flags(
     src = tmp_path / "clip.mp4"
     src.write_bytes(b"source")
     out_dir = tmp_path / "out"
-    monkeypatch.setattr(optimize_mod, "choose_encoder_for_video", lambda _p: ("libx264", "libx264"))
+
+    def _unexpected_encoder_probe(_path: Path) -> tuple[str, str]:
+        raise AssertionError("dry-run transcode planning must not run encoder probes")
+
+    monkeypatch.setattr(optimize_mod, "choose_encoder_for_video", _unexpected_encoder_probe)
 
     optimize(
         [src],
@@ -61,6 +66,7 @@ def test_optimize_auto_selects_transcode_with_transform_flags(
     payload = json.loads(plan_path.read_text())
     assert payload["planned"][0]["mode"] == "transcode"
     cmd = " ".join(payload["planned"][0]["command"])
+    assert "libx264" in cmd
     assert "scale=-2:1080:flags=lanczos" in cmd
     assert "fps=30" in cmd
 

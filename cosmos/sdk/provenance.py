@@ -10,7 +10,7 @@ import subprocess
 import sys
 import uuid
 from datetime import datetime, timezone
-from importlib.metadata import version as pkg_version
+from importlib.metadata import PackageNotFoundError, version as pkg_version
 from pathlib import Path
 from typing import Any, cast
 
@@ -119,7 +119,21 @@ def system_info() -> dict[str, Any]:
     }
 
 
-def package_version(pkg: str = "cosmos") -> str:
+_COSMOS_DISTRIBUTION_NAMES = ("polli-cosmos", "cosmos")
+
+
+def cosmos_package_version() -> str:
+    for distribution_name in _COSMOS_DISTRIBUTION_NAMES:
+        try:
+            return pkg_version(distribution_name)
+        except PackageNotFoundError:
+            continue
+    return "0.0.0"
+
+
+def package_version(pkg: str | None = None) -> str:
+    if pkg is None:
+        return cosmos_package_version()
     try:
         return pkg_version(pkg)
     except Exception:
@@ -261,7 +275,7 @@ def emit_ingest_run(
 ) -> tuple[str, Path]:
     run = IngestRun(
         ingest_run_id=new_id("ing"),
-        version=package_version("cosmos"),
+        version=package_version(),
         time=_now_iso(),
         input_dir=str(input_dir),
         manifest=str(manifest_path) if manifest_path else None,
@@ -308,7 +322,7 @@ def emit_clip_artifact(
 def emit_crop_run(*, output_dir: Path, jobs: list[dict[str, Any]] | None) -> tuple[str, Path]:
     run = CropRun(
         crop_run_id=new_id("crop"),
-        version=package_version("cosmos"),
+        version=package_version(),
         time=_now_iso(),
         output_dir=str(output_dir),
         ffmpeg=ffmpeg_version(),
@@ -364,7 +378,7 @@ def emit_optimize_run(
 ) -> tuple[str, Path]:
     run = OptimizeRun(
         optimize_run_id=new_id("opt"),
-        version=package_version("cosmos"),
+        version=package_version(),
         time=_now_iso(),
         output_dir=str(output_dir),
         ffmpeg=ffmpeg_version(),
